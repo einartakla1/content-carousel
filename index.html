@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Carousel Advertorial Editor</title>
+    <link rel="stylesheet" href="./src/editor.css">
+</head>
+
+<body>
+    <div class="editor-container">
+        <!-- Sidebar for editing -->
+        <div class="sidebar">
+            <div class="sidebar-header">
+                <h1>Carousel Editor</h1>
+                <div id="autoSaveStatus" style="font-size: 12px; color: rgba(255,255,255,0.8); margin-top: 4px;">
+                    Auto-save enabled</div>
+            </div>
+
+            <!-- Global Settings -->
+            <div class="section">
+                <h2>Global Settings</h2>
+
+                <div class="form-group">
+                    <button class="btn-secondary" id="loadProjectBtn" style="width: 100%; margin-bottom: 12px;">📂 Load
+                        Saved Project</button>
+                </div>
+
+                <div class="form-group">
+                    <label>Carousel ID</label>
+                    <input type="text" id="carouselId" readonly>
+                </div>
+                <div class="form-group">
+                    <label>Disclaimer Text</label>
+                    <input type="text" id="disclaimerText" value="ANNONSØRINNHOLD">
+                </div>
+                <div class="form-group">
+                    <label>Customer Name</label>
+                    <input type="text" id="customerName" placeholder="e.g., URMAKER BJERKE">
+                </div>
+                <div class="form-group">
+                    <label>Carousel Height (px)</label>
+                    <input type="number" id="carouselHeight" value="516" min="300" max="800" step="1">
+                    <p class="help-text">Total height of the carousel including header</p>
+                </div>
+                <div class="form-group">
+                    <label>Slide Height (px)</label>
+                    <input type="number" id="slideHeight" value="340" min="200" max="600" step="1">
+                    <p class="help-text">Height of individual slides</p>
+                </div>
+                <div class="form-group">
+                    <label>
+                        <input type="checkbox" id="autoRotate">
+                        Auto-rotate slides
+                    </label>
+                </div>
+                <div class="form-group">
+                    <label>Auto-rotate Delay (ms)</label>
+                    <input type="number" id="autoRotateDelay" value="4000" min="1000" step="500">
+                </div>
+                <div class="form-group">
+                    <label>Auto-rotate Speed (ms)</label>
+                    <input type="number" id="autoRotateSpeed" value="1000" min="500" step="100">
+                </div>
+            </div>
+
+            <!-- Slides Management -->
+            <div class="section">
+                <h2>Slides</h2>
+                <button class="btn-primary" id="addSlideBtn">+ Add Slide</button>
+                <div id="slidesList" class="slides-list"></div>
+            </div>
+
+            <!-- Slide Editor -->
+            <div class="section" id="slideEditor" style="display: none;">
+                <h2>Edit Slide</h2>
+                <div id="slideEditorContent"></div>
+            </div>
+
+            <!-- Export Section -->
+            <div class="section">
+                <h2>Export</h2>
+                <button class="btn-success" id="exportBtn">Export to ZIP</button>
+                <p class="help-text">Exports all assets and config.json ready for S3 upload</p>
+            </div>
+        </div>
+
+        <!-- Preview Area -->
+        <div class="preview-area">
+            <div class="preview-header">
+                <h2>Preview</h2>
+                <div class="preview-controls">
+                    <button class="btn-secondary" id="refreshPreviewBtn" title="Refresh Preview">🔄</button>
+                    <button class="btn-secondary active" data-preview="desktop">Desktop</button>
+                    <button class="btn-secondary" data-preview="mobile">Mobile</button>
+                </div>
+            </div>
+
+            <div class="preview-container" id="previewContainer">
+                <iframe id="previewFrame" class="preview-frame desktop"></iframe>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal for adding new slide -->
+    <div id="addSlideModal" class="modal">
+        <div class="modal-content">
+            <h2>Select Slide Type</h2>
+            <div class="slide-types">
+                <button class="slide-type-btn" data-type="fullImage">
+                    <div class="slide-type-icon">🖼️</div>
+                    <div class="slide-type-name">Full Image</div>
+                </button>
+                <button class="slide-type-btn" data-type="fullImageWithText">
+                    <div class="slide-type-icon">🖼️📝</div>
+                    <div class="slide-type-name">Image with Text</div>
+                </button>
+                <button class="slide-type-btn" data-type="text">
+                    <div class="slide-type-icon">📝</div>
+                    <div class="slide-type-name">Text Only</div>
+                </button>
+                <button class="slide-type-btn" data-type="video">
+                    <div class="slide-type-icon">🎥</div>
+                    <div class="slide-type-name">Video</div>
+                </button>
+                <button class="slide-type-btn" data-type="fullVideoWithText">
+                    <div class="slide-type-icon">🎥📝</div>
+                    <div class="slide-type-name">Video with Text</div>
+                </button>
+                <button class="slide-type-btn" data-type="bigNumber">
+                    <div class="slide-type-icon">🔢</div>
+                    <div class="slide-type-name">Big Numbers</div>
+                </button>
+                <button class="slide-type-btn" data-type="imageSelector">
+                    <div class="slide-type-icon">🖼️🔄</div>
+                    <div class="slide-type-name">Image Selector</div>
+                </button>
+            </div>
+            <button class="btn-secondary" id="cancelAddSlide">Cancel</button>
+        </div>
+    </div>
+
+    <!-- Modal for loading projects -->
+    <div id="loadProjectModal" class="modal">
+        <div class="modal-content">
+            <h2>Load Saved Project</h2>
+            <div id="projectsList" style="max-height: 400px; overflow-y: auto; margin-bottom: 16px;">
+                <!-- Projects will be listed here -->
+            </div>
+            <button class="btn-secondary" id="cancelLoadProject">Cancel</button>
+        </div>
+    </div>
+
+    <script type="module" src="./src/main.js"></script>
+</body>
+
+</html>

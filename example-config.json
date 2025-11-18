@@ -1,0 +1,129 @@
+{
+  "carouselId": 123456789,
+  "disclaimerText": "ANNONSØRINNHOLD",
+  "customerName": "EXAMPLE BRAND",
+  "autoRotate": true,
+  "autoRotateDelay": 4000,
+  "autoRotateSpeed": 1000,
+  "slides": [
+    {
+      "type": "fullVideoWithText",
+      "size": "double",
+      "src": "assets/hero-video.mp4",
+      "posterSrc": "assets/hero-poster.jpg",
+      "alt": "Product showcase video",
+      "title": "Introducing Our New Collection",
+      "text": "Experience innovation and elegance",
+      "textPosition": "bottom",
+      "textWidth": "70%",
+      "textColor": "#ffffff",
+      "titleFontSize": 24,
+      "textFontSize": 14,
+      "useGradient": true,
+      "gradientColor": "#000000",
+      "gradientHeight": "50%",
+      "button": {
+        "text": "Shop Now",
+        "url": "https://example.com/shop",
+        "color": "#127749",
+        "textColor": "#ffffff",
+        "placement": "bottom-right"
+      }
+    },
+    {
+      "type": "fullImage",
+      "size": "regular",
+      "src": "assets/product-shot.jpg",
+      "alt": "Product detail",
+      "useZoom": true
+    },
+    {
+      "type": "text",
+      "size": "regular",
+      "title": "Premium Quality",
+      "text": "Crafted with attention to detail and built to last. Our products combine traditional craftsmanship with modern design.",
+      "backgroundColor": "#ffffff",
+      "titleColor": "#13264A",
+      "textColor": "#333333",
+      "titleFontSize": 22,
+      "textFontSize": 16,
+      "button": {
+        "text": "Learn More",
+        "url": "https://example.com/about",
+        "color": "#13264A",
+        "textColor": "#ffffff",
+        "placement": "bottom-right"
+      }
+    },
+    {
+      "type": "imageSelector",
+      "size": "regular",
+      "backgroundColor": "#EFF2F7",
+      "imageWidth": "60%",
+      "textColor": "#333333",
+      "dotColor": "#cccccc",
+      "dotActiveColor": "#13264A",
+      "images": [
+        {
+          "src": "assets/color-variant-1.jpg",
+          "alt": "Silver variant",
+          "text": "Silver Edition"
+        },
+        {
+          "src": "assets/color-variant-2.jpg",
+          "alt": "Gold variant",
+          "text": "Gold Edition"
+        },
+        {
+          "src": "assets/color-variant-3.jpg",
+          "alt": "Black variant",
+          "text": "Black Edition"
+        }
+      ]
+    },
+    {
+      "type": "bigNumber",
+      "size": "regular",
+      "numberOne": "98%",
+      "textOne": "Customer satisfaction rating based on over 10,000 reviews",
+      "numberTwo": "50+",
+      "textTwo": "Years of expertise in craftsmanship and innovation",
+      "backgroundColor": "#ffffff",
+      "numberColor": "#13264A",
+      "textColor": "#333333",
+      "numberFontSize": 40,
+      "textFontSize": 16
+    },
+    {
+      "type": "fullImageWithText",
+      "size": "double",
+      "src": "assets/lifestyle-shot.jpg",
+      "alt": "Lifestyle image",
+      "title": "Designed for Life",
+      "text": "",
+      "textPosition": "top",
+      "textWidth": "100%",
+      "textColor": "#ffffff",
+      "titleFontSize": 24,
+      "textFontSize": 14,
+      "useGradient": true,
+      "gradientColor": "#000000",
+      "gradientHeight": "30%",
+      "useZoom": false,
+      "button": {
+        "text": "Explore",
+        "url": "https://example.com/collection",
+        "color": "#127749",
+        "textColor": "#ffffff",
+        "placement": "bottom-right"
+      }
+    },
+    {
+      "type": "video",
+      "size": "regular",
+      "src": "assets/detail-video.mp4",
+      "posterSrc": "assets/detail-poster.jpg",
+      "alt": "Product detail video"
+    }
+  ]
+}

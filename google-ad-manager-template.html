@@ -1,0 +1,102 @@
+<!-- 
+  GOOGLE AD MANAGER CREATIVE TEMPLATE
+  Carousel Advertorial Widget
+  
+  This template loads the carousel runtime from CloudFront/S3
+  and passes the config URL to render the carousel.
+-->
+
+<!-- Macro Definitions -->
+<!--
+  Define these macros in GAM:
+  - CAROUSEL_CONFIG_URL: The CloudFront URL to the config.json file
+  - CAROUSEL_RUNTIME_URL: The CloudFront URL to carousel-runtime.js
+-->
+
+<div id="carousel-ad-container-[%CarouselID%]"></div>
+
+<script>
+  (function() {
+    // Configuration
+    window.carouselConfigUrl = '[%CAROUSEL_CONFIG_URL%]';
+    
+    // Create container with unique ID
+    var containerId = 'carousel-ad-container-[%CarouselID%]';
+    var container = document.getElementById(containerId);
+    
+    if (!container) {
+      console.error('Carousel container not found');
+      return;
+    }
+    
+    // Set container to be the carousel target
+    container.id = 'carousel-container';
+    
+    // Load the runtime script
+    var script = document.createElement('script');
+    script.src = '[%CAROUSEL_RUNTIME_URL%]';
+    script.async = true;
+    script.onerror = function() {
+      console.error('Failed to load carousel runtime script');
+    };
+    
+    document.head.appendChild(script);
+  })();
+</script>
+
+<style>
+  /* Ensure container takes up space */
+  #carousel-container {
+    width: 100%;
+    max-width: 980px;
+    margin: 0 auto;
+  }
+</style>
+
+<!-- 
+  ALTERNATIVE: Direct Config Injection
+  
+  If you want to inject the config directly instead of loading from URL,
+  replace the script above with:
+  
+  <script>
+    window.carouselConfig = {
+      "carouselId": [%CarouselID%],
+      "disclaimerText": "[%DisclaimerText%]",
+      "customerName": "[%CustomerName%]",
+      "autoRotate": [%AutoRotate%],
+      "autoRotateDelay": [%AutoRotateDelay%],
+      "autoRotateSpeed": [%AutoRotateSpeed%],
+      "slides": [%SlidesJSON%]
+    };
+  </script>
+  <script src="[%CAROUSEL_RUNTIME_URL%]"></script>
+  <div id="carousel-container"></div>
+  
+  This requires setting up macros for each config field.
+-->
+
+<!-- 
+  IFRAME IMPLEMENTATION (if needed)
+  
+  If running in an iframe:
+  
+  <iframe 
+    id="carousel-iframe-[%CarouselID%]"
+    src="[%CAROUSEL_PAGE_URL%]"
+    style="width: 100%; border: none; overflow: hidden;"
+    scrolling="no">
+  </iframe>
+  
+  <script>
+    // Auto-resize iframe
+    window.addEventListener('message', function(e) {
+      if (e.data && e.data.carouselHeight) {
+        var iframe = document.getElementById('carousel-iframe-[%CarouselID%]');
+        if (iframe) {
+          iframe.style.height = e.data.carouselHeight + 'px';
+        }
+      }
+    });
+  </script>
+-->
