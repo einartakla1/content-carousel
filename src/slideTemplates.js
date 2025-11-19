@@ -3,11 +3,19 @@ export const slideTemplates = {
         type: 'fullImage',
         name: 'Full Image',
         size: 'regular',
+        mobileSize: 'regular',
         src: '',
         alt: '',
+        backgroundColor: '#ffffff',
         useZoom: false,
         imagePosition: 'center center',
         imageScale: 1,
+        imageTransform: {
+            scale: 100,        // percentage (100 = original size)
+            translateX: 0,     // pixels
+            translateY: 0,     // pixels
+            rotate: 0          // degrees
+        },
         link: '',
         button: null
     },
@@ -15,21 +23,35 @@ export const slideTemplates = {
         type: 'fullImageWithText',
         name: 'Image with Text',
         size: 'regular',
+        mobileSize: 'regular',
         src: '',
         alt: '',
+        backgroundColor: '#ffffff',
         title: 'Your Title Here',
         text: 'Your text content here',
         textPosition: 'bottom',
         textWidth: '100%',
+        titleColor: '#ffffff',
         textColor: '#ffffff',
         titleFontSize: 24,
         textFontSize: 14,
+        useFillOverlay: false,
+        fillColor: '#000000',
+        fillHeight: '50%',
+        fillDirection: 'bottom',
         useGradient: true,
         gradientColor: '#000000',
         gradientHeight: '50%',
+        gradientDirection: 'bottom',
         useZoom: false,
         imagePosition: 'center center',
         imageScale: 1,
+        imageTransform: {
+            scale: 100,        // percentage (100 = original size)
+            translateX: 0,     // pixels
+            translateY: 0,     // pixels
+            rotate: 0          // degrees
+        },
         link: '',
         button: null
     },
@@ -37,6 +59,7 @@ export const slideTemplates = {
         type: 'text',
         name: 'Text Only',
         size: 'regular',
+        mobileSize: 'regular',
         title: 'Your Title Here',
         text: 'Your text content here',
         backgroundColor: '#ffffff',
@@ -50,6 +73,7 @@ export const slideTemplates = {
         type: 'video',
         name: 'Video',
         size: 'regular',
+        mobileSize: 'regular',
         src: '',
         posterSrc: '',
         alt: 'Video',
@@ -61,6 +85,7 @@ export const slideTemplates = {
         type: 'fullVideoWithText',
         name: 'Video with Text',
         size: 'regular',
+        mobileSize: 'regular',
         src: '',
         posterSrc: '',
         alt: 'Video',
@@ -82,6 +107,7 @@ export const slideTemplates = {
         type: 'bigNumber',
         name: 'Big Numbers',
         size: 'regular',
+        mobileSize: 'regular',
         numberOne: '85%',
         textOne: 'First statistic description',
         numberTwo: '42',
@@ -97,6 +123,7 @@ export const slideTemplates = {
         type: 'imageSelector',
         name: 'Image Selector',
         size: 'regular',
+        mobileSize: 'regular',
         backgroundColor: '#EFF2F7',
         imageWidth: '60%',
         textColor: '#333333',

@@ -6,92 +6,122 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Carousel Advertorial Editor</title>
     <link rel="stylesheet" href="./src/editor.css">
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
 </head>
 
 <body>
     <div class="editor-container">
-        <!-- Sidebar for editing -->
-        <div class="sidebar">
-            <div class="sidebar-header">
+        <!-- Left Panel: Project Management & Settings & Slides -->
+        <div class="left-panel">
+            <div class="panel-header">
                 <h1>Carousel Editor</h1>
                 <div id="autoSaveStatus" style="font-size: 12px; color: rgba(255,255,255,0.8); margin-top: 4px;">
-                    Auto-save enabled</div>
+                    Auto-save: every 30 sec</div>
             </div>
 
-            <!-- Global Settings -->
+            <!-- Carousel Management -->
             <div class="section">
-                <h2>Global Settings</h2>
+                <button class="btn-primary" id="newProjectBtn"
+                    style="width: 100%; margin-bottom: 8px; display: flex; align-items: center; gap: 8px;">
+                    <i data-lucide="plus-circle" style="width: 16px; height: 16px;"></i>
+                    New Carousel
+                </button>
+                <button class="btn-secondary" id="loadProjectBtn"
+                    style="width: 100%; margin-bottom: 8px; display: flex; align-items: center; gap: 8px;">
+                    <i data-lucide="folder-open" style="width: 16px; height: 16px;"></i>
+                    Load Saved Carousel
+                </button>
+                <button class="btn-secondary" id="manualSaveBtn"
+                    style="width: 100%; margin-bottom: 8px; display: flex; align-items: center; gap: 8px;">
+                    <i data-lucide="save" style="width: 16px; height: 16px;"></i>
+                    Save Carousel
+                    <span style="margin-left: auto; font-size: 11px; opacity: 0.7;">⌘S</span>
+                </button>
+                <button class="btn-success" id="exportBtn" style="width: 100%; display: flex; align-items: center; gap: 8px;">
+                    <i data-lucide="download" style="width: 16px; height: 16px;"></i>
+                    Export Carousel to ZIP
+                </button>
+            </div>
 
-                <div class="form-group">
-                    <button class="btn-secondary" id="loadProjectBtn" style="width: 100%; margin-bottom: 12px;">📂 Load
-                        Saved Project</button>
+            <!-- Carousel Settings (Collapsible, Open by default) -->
+            <div class="collapsible-section active">
+                <div class="collapsible-header">
+                    <span>Carousel Settings</span>
+                    <i data-lucide="chevron-right" class="collapsible-icon"></i>
                 </div>
-
-                <div class="form-group">
-                    <label>Carousel ID</label>
-                    <input type="text" id="carouselId" readonly>
-                </div>
-                <div class="form-group">
-                    <label>Disclaimer Text</label>
-                    <input type="text" id="disclaimerText" value="ANNONSØRINNHOLD">
-                </div>
-                <div class="form-group">
-                    <label>Customer Name</label>
-                    <input type="text" id="customerName" placeholder="e.g., URMAKER BJERKE">
-                </div>
-                <div class="form-group">
-                    <label>Carousel Height (px)</label>
-                    <input type="number" id="carouselHeight" value="516" min="300" max="800" step="1">
-                    <p class="help-text">Total height of the carousel including header</p>
-                </div>
-                <div class="form-group">
-                    <label>Slide Height (px)</label>
-                    <input type="number" id="slideHeight" value="340" min="200" max="600" step="1">
-                    <p class="help-text">Height of individual slides</p>
-                </div>
-                <div class="form-group">
-                    <label>
-                        <input type="checkbox" id="autoRotate">
-                        Auto-rotate slides
-                    </label>
-                </div>
-                <div class="form-group">
-                    <label>Auto-rotate Delay (ms)</label>
-                    <input type="number" id="autoRotateDelay" value="4000" min="1000" step="500">
-                </div>
-                <div class="form-group">
-                    <label>Auto-rotate Speed (ms)</label>
-                    <input type="number" id="autoRotateSpeed" value="1000" min="500" step="100">
+                <div class="collapsible-content">
+                    <div class="section-inner">
+                        <div class="form-group">
+                            <label>Carousel ID</label>
+                            <input type="text" id="carouselId" readonly>
+                        </div>
+                        <div class="form-group">
+                            <label>Carousel Name (Internal)</label>
+                            <input type="text" id="carouselName" placeholder="e.g., Fall Campaign 2025">
+                            <p class="help-text">Internal name to distinguish between multiple carousels for the same customer</p>
+                        </div>
+                        <div class="form-group">
+                            <label>Disclaimer Text</label>
+                            <input type="text" id="disclaimerText" value="ANNONSØRINNHOLD">
+                        </div>
+                        <div class="form-group">
+                            <label>Customer Name</label>
+                            <input type="text" id="customerName" placeholder="e.g., URMAKER BJERKE">
+                        </div>
+                        <div class="form-group">
+                            <label>Carousel Height (px)</label>
+                            <input type="number" id="carouselHeight" value="516" min="300" max="800" step="1">
+                            <p class="help-text">Total height of the carousel including header</p>
+                        </div>
+                        <div class="form-group">
+                            <label>Slide Height (px)</label>
+                            <input type="number" id="slideHeight" value="340" min="200" max="600" step="1">
+                            <p class="help-text">Height of individual slides</p>
+                        </div>
+                        <div class="form-group">
+                            <label>
+                                <input type="checkbox" id="autoRotate">
+                                Auto-rotate slides
+                            </label>
+                        </div>
+                        <div class="form-group">
+                            <label>Auto-rotate Delay (ms)</label>
+                            <input type="number" id="autoRotateDelay" value="4000" min="1000" step="500">
+                            <p class="help-text">Time between each rotation</p>
+                        </div>
+                    </div>
                 </div>
             </div>
 
-            <!-- Slides Management -->
-            <div class="section">
+            <!-- Slides Section -->
+            <div class="section slides-section">
                 <h2>Slides</h2>
-                <button class="btn-primary" id="addSlideBtn">+ Add Slide</button>
+                <button class="btn-primary" id="addSlideBtn" style="width: 100%; margin-bottom: 12px;">+ Add Slide</button>
                 <div id="slidesList" class="slides-list"></div>
-            </div>
-
-            <!-- Slide Editor -->
-            <div class="section" id="slideEditor" style="display: none;">
-                <h2>Edit Slide</h2>
-                <div id="slideEditorContent"></div>
-            </div>
-
-            <!-- Export Section -->
-            <div class="section">
-                <h2>Export</h2>
-                <button class="btn-success" id="exportBtn">Export to ZIP</button>
-                <p class="help-text">Exports all assets and config.json ready for S3 upload</p>
             </div>
         </div>
 
-        <!-- Preview Area -->
-        <div class="preview-area">
+        <!-- Middle Panel: Slide Editor -->
+        <div class="middle-panel" id="slideEditor" style="display: none;">
+            <div class="panel-header">
+                <h2 id="slideEditorTitle">Edit Slide</h2>
+            </div>
+            <div class="panel-content">
+                <div id="slideEditorContent"></div>
+            </div>
+        </div>
+
+        <!-- Right Panel: Preview -->
+        <div class="right-panel">
             <div class="preview-header">
-                <h2>Preview</h2>
+                <h2 id="previewTitle">Preview</h2>
                 <div class="preview-controls">
-                    <button class="btn-secondary" id="refreshPreviewBtn" title="Refresh Preview">🔄</button>
+                    <button class="btn-secondary" id="refreshPreviewBtn" title="Refresh Preview">
+                        <i data-lucide="refresh-cw" style="width: 16px; height: 16px;"></i>
+                    </button>
+                    <button class="btn-secondary active" data-preview-mode="edit">Edit Mode</button>
+                    <button class="btn-secondary" data-preview-mode="preview">Preview Mode</button>
                     <button class="btn-secondary active" data-preview="desktop">Desktop</button>
                     <button class="btn-secondary" data-preview="mobile">Mobile</button>
                 </div>
@@ -109,31 +139,35 @@
             <h2>Select Slide Type</h2>
             <div class="slide-types">
                 <button class="slide-type-btn" data-type="fullImage">
-                    <div class="slide-type-icon">🖼️</div>
+                    <div class="slide-type-icon"><i data-lucide="image" style="width: 32px; height: 32px;"></i></div>
                     <div class="slide-type-name">Full Image</div>
                 </button>
                 <button class="slide-type-btn" data-type="fullImageWithText">
-                    <div class="slide-type-icon">🖼️📝</div>
+                    <div class="slide-type-icon"><i data-lucide="image-plus" style="width: 32px; height: 32px;"></i>
+                    </div>
                     <div class="slide-type-name">Image with Text</div>
                 </button>
                 <button class="slide-type-btn" data-type="text">
-                    <div class="slide-type-icon">📝</div>
+                    <div class="slide-type-icon"><i data-lucide="file-text" style="width: 32px; height: 32px;"></i>
+                    </div>
                     <div class="slide-type-name">Text Only</div>
                 </button>
                 <button class="slide-type-btn" data-type="video">
-                    <div class="slide-type-icon">🎥</div>
+                    <div class="slide-type-icon"><i data-lucide="video" style="width: 32px; height: 32px;"></i></div>
                     <div class="slide-type-name">Video</div>
                 </button>
                 <button class="slide-type-btn" data-type="fullVideoWithText">
-                    <div class="slide-type-icon">🎥📝</div>
+                    <div class="slide-type-icon"><i data-lucide="clapperboard" style="width: 32px; height: 32px;"></i>
+                    </div>
                     <div class="slide-type-name">Video with Text</div>
                 </button>
                 <button class="slide-type-btn" data-type="bigNumber">
-                    <div class="slide-type-icon">🔢</div>
+                    <div class="slide-type-icon"><i data-lucide="hash" style="width: 32px; height: 32px;"></i></div>
                     <div class="slide-type-name">Big Numbers</div>
                 </button>
                 <button class="slide-type-btn" data-type="imageSelector">
-                    <div class="slide-type-icon">🖼️🔄</div>
+                    <div class="slide-type-icon"><i data-lucide="gallery-horizontal"
+                            style="width: 32px; height: 32px;"></i></div>
                     <div class="slide-type-name">Image Selector</div>
                 </button>
             </div>
@@ -143,8 +177,8 @@
 
     <!-- Modal for loading projects -->
     <div id="loadProjectModal" class="modal">
-        <div class="modal-content">
-            <h2>Load Saved Project</h2>
+        <div class="modal-content" style="max-width: 800px; width: 90vw;">
+            <h2>Load Existing Carousel</h2>
             <div id="projectsList" style="max-height: 400px; overflow-y: auto; margin-bottom: 16px;">
                 <!-- Projects will be listed here -->
             </div>
@@ -152,7 +186,31 @@
         </div>
     </div>
 
+    <!-- Startup Modal -->
+    <div id="startupModal" class="modal active" style="background: rgba(0,0,0,0.95);">
+        <div class="modal-content" style="max-width: 500px;">
+            <h2 style="margin-bottom: 24px; text-align: center;">Welcome to Carousel Editor</h2>
+            <p style="text-align: center; margin-bottom: 32px; color: #666;">Would you like to create a new carousel or load an existing project?</p>
+            <div style="display: flex; flex-direction: column; gap: 12px;">
+                <button class="btn-primary" id="startupCreateNew" style="padding: 16px; font-size: 16px; display: flex; align-items: center; justify-content: center; gap: 8px;">
+                    <i data-lucide="plus-circle" style="width: 20px; height: 20px;"></i>
+                    Create New Carousel
+                </button>
+                <button class="btn-secondary" id="startupLoadExisting" style="padding: 16px; font-size: 16px; display: flex; align-items: center; justify-content: center; gap: 8px;">
+                    <i data-lucide="folder-open" style="width: 20px; height: 20px;"></i>
+                    Load Existing Carousel
+                </button>
+            </div>
+        </div>
+    </div>
+
     <script type="module" src="./src/main.js"></script>
+    <script>
+        // Initialize Lucide icons
+        if (typeof lucide !== 'undefined') {
+            lucide.createIcons();
+        }
+    </script>
 </body>
 
 </html>

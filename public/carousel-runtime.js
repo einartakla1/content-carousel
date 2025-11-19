@@ -136,11 +136,29 @@
                 border-radius: 8px;
                 overflow: hidden;
                 height: ${slideHeight}px;
-                width: ${slideHeight}px;
+                width: 340px;
             }
 
-            .double-box {
-                width: ${slideHeight * 2}px;
+            /* Desktop sizes (only apply on desktop) */
+            @media (min-width: 601px) {
+                .desktop-single {
+                    width: 340px;
+                }
+
+                .desktop-double {
+                    width: 680px;
+                }
+            }
+
+            /* Mobile sizes (only apply on mobile) */
+            @media (max-width: 600px) {
+                .mobile-single {
+                    width: 340px;
+                }
+
+                .mobile-double {
+                    width: 680px;
+                }
             }
 
             .content-image {
@@ -445,21 +463,8 @@
                     padding-left: 24px;
                 }
 
-                .carousel-header {
-                    font-size: 12px;
-                }
-
                 .scroll-container {
                     scroll-snap-type: none;
-                }
-
-                .content-box {
-                    height: ${slideHeight * 0.88}px;
-                    width: ${slideHeight * 0.88}px;
-                }
-
-                .double-box {
-                    width: ${slideHeight * 0.88}px;
                 }
 
                 .text-overlay-title {
@@ -522,6 +527,12 @@
         });
     }
 
+    function getSizeClasses(slide) {
+        const desktopClass = slide.size === 'double' ? 'desktop-double' : 'desktop-single';
+        const mobileClass = (slide.mobileSize || 'regular') === 'double' ? 'mobile-double' : 'mobile-single';
+        return `${desktopClass} ${mobileClass}`;
+    }
+
     function renderSlide(slide) {
         switch (slide.type) {
             case 'fullImage':
@@ -546,8 +557,13 @@
 
     function renderFullImage(slide) {
         const box = document.createElement('div');
-        box.className = `content-box ${slide.size === 'double' ? 'double-box' : ''}`;
+        box.className = `content-box ${getSizeClasses(slide)}`;
         box.style.position = 'relative';
+
+        // Apply background color
+        if (slide.backgroundColor) {
+            box.style.backgroundColor = slide.backgroundColor;
+        }
 
         const img = document.createElement('img');
         img.src = slide.src;
@@ -556,6 +572,57 @@
 
         if (slide.useZoom) {
             img.classList.add('zoom-effect');
+        }
+
+        // Apply image transformations
+        if (slide.imageTransform) {
+            const { scale, translateX, translateY, rotate } = slide.imageTransform;
+
+            // Handle zoom/scale
+            if (scale < 100) {
+                // Zooming out - switch to contain to show the full image
+                img.style.objectFit = 'contain';
+            } else {
+                // At 100% or zooming in - use cover
+                img.style.objectFit = 'cover';
+            }
+
+            // Build transform array
+            const transforms = [];
+
+            // Apply scale transform for zoom in/out
+            if (scale !== 100) {
+                const scaleValue = scale / 100;
+                transforms.push(`scale(${scaleValue})`);
+            }
+
+            // Handle panning differently based on zoom level
+            if (scale > 100) {
+                // When zoomed in, use transform translate for full 2D panning
+                if (translateX !== 0 || translateY !== 0) {
+                    transforms.push(`translate(${translateX}px, ${translateY}px)`);
+                }
+                // Reset object-position to center when using transform translate
+                img.style.objectPosition = '50% 50%';
+            } else {
+                // At 100% or zoomed out, use object-position for panning
+                const centerX = 50;
+                const centerY = 50;
+                const offsetXPercent = centerX + (translateX / 10);
+                const offsetYPercent = centerY + (translateY / 10);
+                img.style.objectPosition = `${offsetXPercent}% ${offsetYPercent}%`;
+            }
+
+            // Add rotation
+            if (rotate !== 0) {
+                transforms.push(`rotate(${rotate}deg)`);
+            }
+
+            // Apply transforms
+            if (transforms.length > 0) {
+                img.style.transform = transforms.join(' ');
+                img.style.transformOrigin = 'center center';
+            }
         }
 
         box.appendChild(img);
@@ -579,8 +646,13 @@
 
     function renderFullImageWithText(slide) {
         const box = document.createElement('div');
-        box.className = `content-box ${slide.size === 'double' ? 'double-box' : ''}`;
+        box.className = `content-box ${getSizeClasses(slide)}`;
         box.style.position = 'relative';
+
+        // Apply background color
+        if (slide.backgroundColor) {
+            box.style.backgroundColor = slide.backgroundColor;
+        }
 
         const img = document.createElement('img');
         img.src = slide.src;
@@ -591,9 +663,105 @@
             img.classList.add('zoom-effect');
         }
 
-        const overlay = createTextOverlay(slide);
+        // Apply image transformations
+        if (slide.imageTransform) {
+            const { scale, translateX, translateY, rotate } = slide.imageTransform;
 
+            // Handle zoom/scale
+            if (scale < 100) {
+                // Zooming out - switch to contain to show the full image
+                img.style.objectFit = 'contain';
+            } else {
+                // At 100% or zooming in - use cover
+                img.style.objectFit = 'cover';
+            }
+
+            // Build transform array
+            const transforms = [];
+
+            // Apply scale transform for zoom in/out
+            if (scale !== 100) {
+                const scaleValue = scale / 100;
+                transforms.push(`scale(${scaleValue})`);
+            }
+
+            // Handle panning differently based on zoom level
+            if (scale > 100) {
+                // When zoomed in, use transform translate for full 2D panning
+                if (translateX !== 0 || translateY !== 0) {
+                    transforms.push(`translate(${translateX}px, ${translateY}px)`);
+                }
+                // Reset object-position to center when using transform translate
+                img.style.objectPosition = '50% 50%';
+            } else {
+                // At 100% or zoomed out, use object-position for panning
+                const centerX = 50;
+                const centerY = 50;
+                const offsetXPercent = centerX + (translateX / 10);
+                const offsetYPercent = centerY + (translateY / 10);
+                img.style.objectPosition = `${offsetXPercent}% ${offsetYPercent}%`;
+            }
+
+            // Add rotation
+            if (rotate !== 0) {
+                transforms.push(`rotate(${rotate}deg)`);
+            }
+
+            // Apply transforms
+            if (transforms.length > 0) {
+                img.style.transform = transforms.join(' ');
+                img.style.transformOrigin = 'center center';
+            }
+        }
+
+        // Append in correct z-order: image (bottom), fill overlay, gradient overlay, text overlay (top)
         box.appendChild(img);
+
+        // Create fill overlay if enabled
+        if (slide.useFillOverlay) {
+            const fillOverlay = document.createElement('div');
+            fillOverlay.style.position = 'absolute';
+            fillOverlay.style.left = '0';
+            fillOverlay.style.right = '0';
+            fillOverlay.style.pointerEvents = 'none';
+            fillOverlay.style.backgroundColor = slide.fillColor || '#000000';
+            fillOverlay.style.height = slide.fillHeight || '50%';
+
+            // Apply fill direction
+            if (slide.fillDirection === 'top') {
+                fillOverlay.style.top = '0';
+            } else {
+                fillOverlay.style.bottom = '0';
+            }
+
+            box.appendChild(fillOverlay);
+        }
+
+        // Create gradient overlay if enabled (separate from text overlay)
+        if (slide.useGradient) {
+            const gradientOverlay = document.createElement('div');
+            gradientOverlay.style.position = 'absolute';
+            gradientOverlay.style.left = '0';
+            gradientOverlay.style.right = '0';
+            gradientOverlay.style.pointerEvents = 'none';
+            gradientOverlay.style.height = slide.gradientHeight || '50%';
+
+            const direction = slide.gradientDirection || 'bottom';
+            const color = slide.gradientColor || '#000000';
+
+            // Position and gradient direction based on gradientDirection
+            if (direction === 'top') {
+                gradientOverlay.style.top = '0';
+                gradientOverlay.style.background = `linear-gradient(to bottom, ${color} 0%, rgba(0, 0, 0, 0) 100%)`;
+            } else {
+                gradientOverlay.style.bottom = '0';
+                gradientOverlay.style.background = `linear-gradient(to top, ${color} 0%, rgba(0, 0, 0, 0) 100%)`;
+            }
+
+            box.appendChild(gradientOverlay);
+        }
+
+        const overlay = createTextOverlay(slide);
         box.appendChild(overlay);
 
         if (slide.button) {
@@ -616,28 +784,14 @@
     function createTextOverlay(slide) {
         const overlay = document.createElement('div');
         overlay.className = `text-overlay ${slide.textPosition === 'top' ? 'text-overlay-top' : 'text-overlay-bottom'}`;
-
-        if (slide.gradientHeight) {
-            overlay.style.height = slide.gradientHeight;
-        } else {
-            overlay.style.height = '120px';
-        }
-
-        if (slide.useGradient) {
-            const gradient = document.createElement('div');
-            gradient.className = 'gradient-overlay';
-            const gradientDirection = slide.textPosition === 'top' ? 'to bottom' : 'to top';
-            const color = slide.gradientColor || '#000000';
-            gradient.style.background = `linear-gradient(${gradientDirection}, ${color} 0%, rgba(0, 0, 0, 0) 100%)`;
-            overlay.appendChild(gradient);
-        }
+        overlay.style.pointerEvents = 'none';
 
         if (slide.title) {
             const title = document.createElement('div');
             title.className = 'text-overlay-title';
             title.innerHTML = formatText(slide.title);
             if (slide.textWidth) title.style.maxWidth = slide.textWidth;
-            if (slide.textColor) title.style.color = slide.textColor;
+            if (slide.titleColor) title.style.color = slide.titleColor;
             if (slide.titleFontSize) title.style.fontSize = slide.titleFontSize + 'px';
             overlay.appendChild(title);
         }
@@ -657,7 +811,7 @@
 
     function renderText(slide) {
         const box = document.createElement('div');
-        box.className = `content-box ${slide.size === 'double' ? 'double-box' : ''}`;
+        box.className = `content-box ${getSizeClasses(slide)}`;
 
         const textBox = document.createElement('div');
         textBox.className = 'text-box';
@@ -691,7 +845,7 @@
 
     function renderVideo(slide) {
         const box = document.createElement('div');
-        box.className = `content-box ${slide.size === 'double' ? 'double-box' : ''}`;
+        box.className = `content-box ${getSizeClasses(slide)}`;
         box.style.position = 'relative';
 
         const video = document.createElement('video');
@@ -718,7 +872,7 @@
 
     function renderFullVideoWithText(slide) {
         const box = document.createElement('div');
-        box.className = `content-box ${slide.size === 'double' ? 'double-box' : ''}`;
+        box.className = `content-box ${getSizeClasses(slide)}`;
         box.style.position = 'relative';
 
         const video = document.createElement('video');
@@ -748,7 +902,7 @@
 
     function renderBigNumber(slide) {
         const box = document.createElement('div');
-        box.className = `content-box ${slide.size === 'double' ? 'double-box' : ''}`;
+        box.className = `content-box ${getSizeClasses(slide)}`;
 
         const bigNumberBox = document.createElement('div');
         bigNumberBox.className = 'big-number-box';
@@ -800,7 +954,7 @@
 
     function renderImageSelector(slide) {
         const box = document.createElement('div');
-        box.className = `content-box ${slide.size === 'double' ? 'double-box' : ''}`;
+        box.className = `content-box ${getSizeClasses(slide)}`;
 
         const selectorBox = document.createElement('div');
         selectorBox.className = 'image-selector';
@@ -901,11 +1055,52 @@
         }
 
         function handleScroll(direction) {
-            const scrollAmount = scrollContainer.clientWidth * 0.8;
-            scrollContainer.scrollBy({
-                left: direction === 'left' ? -scrollAmount : scrollAmount,
-                behavior: 'smooth'
-            });
+            const slides = scrollContainer.querySelectorAll('.content-box');
+            if (!slides.length) return;
+
+            const currentScroll = scrollContainer.scrollLeft;
+
+            if (direction === 'right') {
+                // Find the next slide to the right
+                let nextSlide = null;
+                for (let i = 0; i < slides.length; i++) {
+                    const slideLeft = slides[i].offsetLeft;
+                    if (slideLeft > currentScroll + 50) {
+                        nextSlide = slides[i];
+                        break;
+                    }
+                }
+
+                if (nextSlide) {
+                    scrollContainer.scrollTo({
+                        left: nextSlide.offsetLeft,
+                        behavior: 'smooth'
+                    });
+                }
+            } else {
+                // Find the previous slide to the left
+                let prevSlide = null;
+                for (let i = slides.length - 1; i >= 0; i--) {
+                    const slideLeft = slides[i].offsetLeft;
+                    if (slideLeft < currentScroll - 50) {
+                        prevSlide = slides[i];
+                        break;
+                    }
+                }
+
+                if (prevSlide) {
+                    scrollContainer.scrollTo({
+                        left: prevSlide.offsetLeft,
+                        behavior: 'smooth'
+                    });
+                } else {
+                    // Already at the first slide, scroll to position 0
+                    scrollContainer.scrollTo({
+                        left: 0,
+                        behavior: 'smooth'
+                    });
+                }
+            }
         }
 
         scrollButtonLeft.addEventListener('click', () => {
@@ -930,42 +1125,83 @@
     let autoScrollInterval = null;
     let isUserInteracting = false;
     let resetTimer = null;
+    let eventListenersAttached = false;
+    let isAnimating = false;
+
+    function cleanupAutoScroll() {
+        // Clear timers without setting isUserInteracting
+        if (autoScrollTimer) {
+            clearTimeout(autoScrollTimer);
+            autoScrollTimer = null;
+        }
+        if (autoScrollInterval) {
+            clearInterval(autoScrollInterval);
+            autoScrollInterval = null;
+        }
+        if (resetTimer) {
+            clearTimeout(resetTimer);
+            resetTimer = null;
+        }
+        eventListenersAttached = false;
+    }
 
     function setupAutoRotate() {
+        // Always cleanup first to prevent multiple timers
+        cleanupAutoScroll();
+
         if (!config.autoRotate) return;
 
         const scrollContainer = document.getElementById('scrollContainer');
         if (!scrollContainer) return;
 
-        scrollContainer.addEventListener('scroll', (e) => {
-            if (e.isTrusted) {
+        // Reset user interaction flag for fresh start
+        isUserInteracting = false;
+
+        // Only attach event listeners once
+        if (!eventListenersAttached) {
+            scrollContainer.addEventListener('scroll', (e) => {
+                // Ignore scroll events during our own animation
+                if (isAnimating) return;
+
+                if (e.isTrusted) {
+                    stopAutoScroll();
+                    resetAutoScroll();
+                }
+            });
+
+            scrollContainer.addEventListener('wheel', () => {
                 stopAutoScroll();
                 resetAutoScroll();
-            }
-        });
+            });
 
-        scrollContainer.addEventListener('wheel', () => {
-            stopAutoScroll();
-            resetAutoScroll();
-        });
+            scrollContainer.addEventListener('touchstart', () => {
+                stopAutoScroll();
+                resetAutoScroll();
+            });
 
-        scrollContainer.addEventListener('touchstart', () => {
-            stopAutoScroll();
-            resetAutoScroll();
-        });
+            scrollContainer.addEventListener('touchmove', () => {
+                stopAutoScroll();
+            });
 
-        scrollContainer.addEventListener('mouseenter', () => {
-            stopAutoScroll();
-        });
+            scrollContainer.addEventListener('touchend', () => {
+                resetAutoScroll();
+            });
 
-        scrollContainer.addEventListener('mouseleave', () => {
-            resetAutoScroll();
-        });
+            scrollContainer.addEventListener('mouseenter', () => {
+                stopAutoScroll();
+            });
 
-        scrollContainer.addEventListener('click', () => {
-            stopAutoScroll();
-            resetAutoScroll();
-        });
+            scrollContainer.addEventListener('mouseleave', () => {
+                resetAutoScroll();
+            });
+
+            scrollContainer.addEventListener('click', () => {
+                stopAutoScroll();
+                resetAutoScroll();
+            });
+
+            eventListenersAttached = true;
+        }
 
         startAutoScroll();
     }
@@ -973,13 +1209,10 @@
     function startAutoScroll() {
         if (!config.autoRotate) return;
 
+        // Schedule the next rotation
         autoScrollTimer = setTimeout(() => {
-            if (!isUserInteracting) {
-                autoScrollInterval = setInterval(() => {
-                    if (!isUserInteracting) {
-                        performAutoScroll();
-                    }
-                }, config.autoRotateSpeed);
+            if (!isUserInteracting && config.autoRotate) {
+                performAutoScroll();
             }
         }, config.autoRotateDelay);
     }
@@ -1014,20 +1247,46 @@
         const scrollContainer = document.getElementById('scrollContainer');
         if (!scrollContainer) return;
 
-        const scrollAmount = scrollContainer.clientWidth * 0.8;
-        const maxScroll = scrollContainer.scrollWidth - scrollContainer.clientWidth;
+        const slides = scrollContainer.querySelectorAll('.content-box');
+        if (!slides.length) return;
 
-        if (scrollContainer.scrollLeft >= maxScroll - 10) {
+        const currentScroll = scrollContainer.scrollLeft;
+
+        // Find the next slide to scroll to
+        let nextSlide = null;
+        for (let i = 0; i < slides.length; i++) {
+            const slideLeft = slides[i].offsetLeft;
+            // Find the first slide that's beyond the current scroll position (with small tolerance)
+            if (slideLeft > currentScroll + 50) {
+                nextSlide = slides[i];
+                break;
+            }
+        }
+
+        // Set animating flag to prevent scroll events from interfering
+        isAnimating = true;
+
+        // If we found a next slide, scroll to it, otherwise go back to start
+        if (nextSlide) {
+            scrollContainer.scrollTo({
+                left: nextSlide.offsetLeft,
+                behavior: 'smooth'
+            });
+        } else {
             scrollContainer.scrollTo({
                 left: 0,
                 behavior: 'smooth'
             });
-        } else {
-            scrollContainer.scrollBy({
-                left: scrollAmount,
-                behavior: 'smooth'
-            });
         }
+
+        // Wait for scroll animation to complete before scheduling next rotation
+        // Using a fixed 500ms to allow browser's smooth scroll to finish
+        setTimeout(() => {
+            isAnimating = false;
+            if (!isUserInteracting && config.autoRotate) {
+                startAutoScroll();
+            }
+        }, 500);
     }
 
     function setupIntersectionObserver() {
