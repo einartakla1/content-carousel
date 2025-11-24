@@ -48,8 +48,10 @@ const storage = multer.diskStorage({
         }
     },
     filename: (req, file, cb) => {
-        // Use original filename
-        cb(null, file.originalname);
+        // Use custom filename if provided, otherwise use original filename
+        const customFilename = req.body.customFilename;
+        const filename = customFilename || file.originalname;
+        cb(null, filename);
     }
 });
 

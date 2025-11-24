@@ -10,12 +10,31 @@
         return text.replace(/\n/g, '<br>');
     }
 
+    // Helper function to resolve asset URLs relative to config location
+    let baseUrl = '';
+    function resolveAssetUrl(url) {
+        if (!url) return '';
+        // If URL is already absolute, return as-is
+        if (url.startsWith('http://') || url.startsWith('https://') || url.startsWith('data:')) {
+            return url;
+        }
+        // Otherwise, resolve relative to baseUrl
+        if (baseUrl) {
+            return baseUrl + url;
+        }
+        return url;
+    }
+
     // Load config from window.carouselConfig or fetch from window.carouselConfigUrl
     let config = window.carouselConfig;
 
     if (!config && window.carouselConfigUrl) {
+        // Extract base URL from config URL (everything up to the last /)
+        const configUrl = window.carouselConfigUrl;
+        baseUrl = configUrl.substring(0, configUrl.lastIndexOf('/') + 1);
+
         // Fetch config from URL
-        fetch(window.carouselConfigUrl)
+        fetch(configUrl)
             .then(response => response.json())
             .then(data => {
                 config = data;
@@ -566,7 +585,7 @@
         }
 
         const img = document.createElement('img');
-        img.src = slide.src;
+        img.src = resolveAssetUrl(slide.src);
         img.alt = slide.alt;
         img.className = 'content-image';
 
@@ -655,7 +674,7 @@
         }
 
         const img = document.createElement('img');
-        img.src = slide.src;
+        img.src = resolveAssetUrl(slide.src);
         img.alt = slide.alt;
         img.className = 'content-image';
 
@@ -812,6 +831,7 @@
     function renderText(slide) {
         const box = document.createElement('div');
         box.className = `content-box ${getSizeClasses(slide)}`;
+        box.style.position = 'relative';  // Enable absolute positioning for button
 
         const textBox = document.createElement('div');
         textBox.className = 'text-box';
@@ -832,14 +852,16 @@
         textBox.appendChild(title);
         textBox.appendChild(text);
 
+        box.appendChild(textBox);
+
+        // Use same button positioning system as image slides
         if (slide.button) {
             const buttonContainer = document.createElement('div');
-            buttonContainer.className = 'text-box-button-container';
+            buttonContainer.className = 'overlay-button-container ' + getButtonPlacementClass(slide.button.placement);
             buttonContainer.appendChild(createButton(slide.button));
-            textBox.appendChild(buttonContainer);
+            box.appendChild(buttonContainer);
         }
 
-        box.appendChild(textBox);
         return box;
     }
 
@@ -850,8 +872,8 @@
 
         const video = document.createElement('video');
         video.className = 'video-box';
-        video.src = slide.src;
-        if (slide.posterSrc) video.poster = slide.posterSrc;
+        video.src = resolveAssetUrl(slide.src);
+        if (slide.posterSrc) video.poster = resolveAssetUrl(slide.posterSrc);
         video.loop = true;
         video.muted = true;
         video.playsInline = true;
@@ -877,17 +899,62 @@
 
         const video = document.createElement('video');
         video.className = 'video-box';
-        video.src = slide.src;
-        if (slide.posterSrc) video.poster = slide.posterSrc;
+        video.src = resolveAssetUrl(slide.src);
+        if (slide.posterSrc) video.poster = resolveAssetUrl(slide.posterSrc);
         video.loop = true;
         video.muted = true;
         video.playsInline = true;
         video.setAttribute('playsinline', '');
         video.setAttribute('preload', 'metadata');
 
-        const overlay = createTextOverlay(slide);
-
+        // Append in correct z-order: video (bottom), fill overlay, gradient overlay, text overlay (top)
         box.appendChild(video);
+
+        // Create fill overlay if enabled
+        if (slide.useFillOverlay) {
+            const fillOverlay = document.createElement('div');
+            fillOverlay.style.position = 'absolute';
+            fillOverlay.style.left = '0';
+            fillOverlay.style.right = '0';
+            fillOverlay.style.pointerEvents = 'none';
+            fillOverlay.style.backgroundColor = slide.fillColor || '#000000';
+            fillOverlay.style.height = slide.fillHeight || '50%';
+
+            // Apply fill direction
+            if (slide.fillDirection === 'top') {
+                fillOverlay.style.top = '0';
+            } else {
+                fillOverlay.style.bottom = '0';
+            }
+
+            box.appendChild(fillOverlay);
+        }
+
+        // Create gradient overlay if enabled (separate from text overlay)
+        if (slide.useGradient) {
+            const gradientOverlay = document.createElement('div');
+            gradientOverlay.style.position = 'absolute';
+            gradientOverlay.style.left = '0';
+            gradientOverlay.style.right = '0';
+            gradientOverlay.style.pointerEvents = 'none';
+            gradientOverlay.style.height = slide.gradientHeight || '50%';
+
+            const direction = slide.gradientDirection || 'bottom';
+            const color = slide.gradientColor || '#000000';
+
+            // Position and gradient direction based on gradientDirection
+            if (direction === 'top') {
+                gradientOverlay.style.top = '0';
+                gradientOverlay.style.background = `linear-gradient(to bottom, ${color} 0%, rgba(0, 0, 0, 0) 100%)`;
+            } else {
+                gradientOverlay.style.bottom = '0';
+                gradientOverlay.style.background = `linear-gradient(to top, ${color} 0%, rgba(0, 0, 0, 0) 100%)`;
+            }
+
+            box.appendChild(gradientOverlay);
+        }
+
+        const overlay = createTextOverlay(slide);
         box.appendChild(overlay);
 
         if (slide.button) {
@@ -967,7 +1034,7 @@
 
         slide.images.forEach((image, index) => {
             const img = document.createElement('img');
-            img.src = image.src;
+            img.src = resolveAssetUrl(image.src);
             img.alt = image.alt;
             img.className = `image-selector-image ${index === 0 ? 'visible' : 'hidden'}`;
             if (slide.imageWidth) img.style.width = slide.imageWidth;

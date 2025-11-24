@@ -81,11 +81,36 @@ async function deleteProject(id) {
     }
 }
 
+/**
+ * Generate a safe filename without special characters
+ * @param {string} originalName - Original filename
+ * @param {string} carouselId - Carousel ID for prefix
+ * @returns {string} - Safe filename (always .webp for images, original ext for videos)
+ */
+function generateSafeFilename(originalName, carouselId) {
+    // Extract extension
+    const lastDotIndex = originalName.lastIndexOf('.');
+    let ext = lastDotIndex > 0 ? originalName.substring(lastDotIndex).toLowerCase() : '.jpg';
+
+    // For image formats, use .webp (they'll be converted during optimization)
+    const imageExtensions = ['.jpg', '.jpeg', '.png', '.gif', '.bmp', '.tiff', '.webp'];
+    if (imageExtensions.includes(ext)) {
+        ext = '.webp'; // All images will be optimized to WebP
+    }
+
+    // Generate random string (8 chars)
+    const randomStr = Math.random().toString(36).substring(2, 10);
+
+    // Create safe filename: carouselId-randomStr.ext
+    return `${carouselId}-${randomStr}${ext}`;
+}
+
 // Upload an asset
-async function uploadAsset(projectId, file) {
+async function uploadAsset(projectId, file, safeFilename) {
     try {
         const formData = new FormData();
         formData.append('file', file);
+        formData.append('customFilename', safeFilename); // Send custom filename
 
         const response = await fetch(`${API_BASE}/projects/${projectId}/assets`, {
             method: 'POST',
@@ -1202,6 +1227,35 @@ function renderFullVideoWithTextEditor(container, slide, index) {
         </div>
         <div class="collapsible-section">
             <div class="collapsible-header">
+                <span>Fill Overlay</span>
+                <i data-lucide="chevron-right" class="collapsible-icon"></i>
+            </div>
+            <div class="collapsible-content">
+                <div class="form-group">
+                    <label>
+                        <input type="checkbox" id="slide-useFillOverlay" ${slide.useFillOverlay ? 'checked' : ''}>
+                        Use fill overlay
+                    </label>
+                </div>
+                <div class="form-group">
+                    <label>Fill Color</label>
+                    <input type="color" id="slide-fillColor" value="${slide.fillColor || '#000000'}">
+                </div>
+                <div class="form-group">
+                    <label>Fill Height</label>
+                    <input type="text" id="slide-fillHeight" value="${slide.fillHeight || '50%'}" placeholder="e.g., 50%, 200px">
+                </div>
+                <div class="form-group">
+                    <label>Fill Direction</label>
+                    <select id="slide-fillDirection">
+                        <option value="bottom" ${slide.fillDirection === 'bottom' ? 'selected' : ''}>From Bottom</option>
+                        <option value="top" ${slide.fillDirection === 'top' ? 'selected' : ''}>From Top</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+        <div class="collapsible-section">
+            <div class="collapsible-header">
                 <span>Gradient Overlay</span>
                 <i data-lucide="chevron-right" class="collapsible-icon"></i>
             </div>
@@ -1219,6 +1273,13 @@ function renderFullVideoWithTextEditor(container, slide, index) {
                 <div class="form-group">
                     <label>Gradient Height</label>
                     <input type="text" id="slide-gradientHeight" value="${slide.gradientHeight || '50%'}" placeholder="e.g., 50%, 200px">
+                </div>
+                <div class="form-group">
+                    <label>Gradient Direction</label>
+                    <select id="slide-gradientDirection">
+                        <option value="bottom" ${slide.gradientDirection === 'bottom' ? 'selected' : ''}>From Bottom</option>
+                        <option value="top" ${slide.gradientDirection === 'top' ? 'selected' : ''}>From Top</option>
+                    </select>
                 </div>
             </div>
         </div>
@@ -1290,6 +1351,26 @@ function renderFullVideoWithTextEditor(container, slide, index) {
         updatePreview();
     });
 
+    document.getElementById('slide-useFillOverlay').addEventListener('change', (e) => {
+        slide.useFillOverlay = e.target.checked;
+        updatePreview();
+    });
+
+    document.getElementById('slide-fillColor').addEventListener('input', (e) => {
+        slide.fillColor = e.target.value;
+        updatePreview();
+    });
+
+    document.getElementById('slide-fillHeight').addEventListener('input', (e) => {
+        slide.fillHeight = e.target.value;
+        updatePreview();
+    });
+
+    document.getElementById('slide-fillDirection').addEventListener('change', (e) => {
+        slide.fillDirection = e.target.value;
+        updatePreview();
+    });
+
     document.getElementById('slide-useGradient').addEventListener('change', (e) => {
         slide.useGradient = e.target.checked;
         updatePreview();
@@ -1302,6 +1383,11 @@ function renderFullVideoWithTextEditor(container, slide, index) {
 
     document.getElementById('slide-gradientHeight').addEventListener('input', (e) => {
         slide.gradientHeight = e.target.value;
+        updatePreview();
+    });
+
+    document.getElementById('slide-gradientDirection').addEventListener('change', (e) => {
+        slide.gradientDirection = e.target.value;
         updatePreview();
     });
 
@@ -1841,14 +1927,18 @@ async function handleFileUpload(file, callback) {
     }
 
     try {
-        // Upload file to server
-        const fileUrl = await uploadAsset(carouselConfig.carouselId, file);
+        // Generate safe filename
+        const safeFilename = generateSafeFilename(file.name, carouselConfig.carouselId);
+        console.log(`Uploading: ${file.name} → ${safeFilename}`);
 
-        // Store reference to uploaded asset
-        uploadedAssets.set(file.name, file);
+        // Upload file to server with safe filename
+        const fileUrl = await uploadAsset(carouselConfig.carouselId, file, safeFilename);
 
-        // Call callback with the server URL
-        callback(fileUrl, file.name);
+        // Store reference to uploaded asset using safe filename
+        uploadedAssets.set(safeFilename, file);
+
+        // Call callback with the server URL and safe filename
+        callback(fileUrl, safeFilename);
     } catch (error) {
         console.error('File upload failed:', error);
         alert('Failed to upload file. Please try again.');
@@ -2174,6 +2264,177 @@ window.deleteProjectById = async (id, fromStartup = false) => {
     await showLoadProjectModal(fromStartup);
 };
 
+/**
+ * Check if image has transparency
+ */
+function hasTransparency(canvas, ctx) {
+    const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    const data = imageData.data;
+
+    // Check alpha channel - if any pixel has alpha < 255, image has transparency
+    for (let i = 3; i < data.length; i += 4) {
+        if (data[i] < 255) {
+            return true;
+        }
+    }
+    return false;
+}
+
+/**
+ * Optimize image for web delivery
+ * @param {Blob} imageBlob - Original image blob
+ * @param {Object} options - Optimization options
+ * @returns {Promise<Blob>} - Optimized image blob
+ */
+async function optimizeImage(imageBlob, options = {}) {
+    const {
+        maxWidth = 980,      // Max carousel width
+        maxHeight = 600,     // Max reasonable height
+        retinaMultiplier = 2, // 2x for retina displays
+        zoomBuffer = 1.3,    // 30% extra for zoom effects
+        quality = 0.85       // Quality (0-1)
+    } = options;
+
+    // Calculate target dimensions with retina and zoom considerations
+    const targetMaxWidth = maxWidth * retinaMultiplier * zoomBuffer;
+    const targetMaxHeight = maxHeight * retinaMultiplier * zoomBuffer;
+
+    return new Promise((resolve) => {
+        const img = new Image();
+        const url = URL.createObjectURL(imageBlob);
+        const originalType = imageBlob.type;
+
+        img.onload = () => {
+            // Calculate scaled dimensions while maintaining aspect ratio
+            let width = img.width;
+            let height = img.height;
+
+            // Only resize if image is larger than target
+            if (width > targetMaxWidth || height > targetMaxHeight) {
+                const widthRatio = targetMaxWidth / width;
+                const heightRatio = targetMaxHeight / height;
+                const ratio = Math.min(widthRatio, heightRatio);
+
+                width = Math.round(width * ratio);
+                height = Math.round(height * ratio);
+            }
+
+            // Create canvas and resize
+            const canvas = document.createElement('canvas');
+            canvas.width = width;
+            canvas.height = height;
+
+            const ctx = canvas.getContext('2d');
+            ctx.imageSmoothingEnabled = true;
+            ctx.imageSmoothingQuality = 'high';
+            ctx.drawImage(img, 0, 0, width, height);
+
+            // Determine best output format
+            let outputFormat = 'image/jpeg';
+            let outputQuality = quality;
+
+            // Check if image has transparency
+            const isTransparent = originalType === 'image/png' && hasTransparency(canvas, ctx);
+
+            // Try WebP first (best compression, supports transparency)
+            canvas.toBlob(
+                (webpBlob) => {
+                    if (webpBlob) {
+                        // WebP supported!
+                        URL.revokeObjectURL(url);
+                        console.log(`Optimized (WebP): ${Math.round(imageBlob.size / 1024)}KB → ${Math.round(webpBlob.size / 1024)}KB (${width}x${height})`);
+                        resolve(webpBlob);
+                    } else {
+                        // WebP not supported, fallback to JPEG or PNG
+                        if (isTransparent) {
+                            // Keep as PNG to preserve transparency
+                            outputFormat = 'image/png';
+                            outputQuality = undefined; // PNG doesn't use quality param
+                        }
+
+                        canvas.toBlob(
+                            (fallbackBlob) => {
+                                URL.revokeObjectURL(url);
+                                const formatName = isTransparent ? 'PNG' : 'JPEG';
+                                console.log(`Optimized (${formatName}): ${Math.round(imageBlob.size / 1024)}KB → ${Math.round(fallbackBlob.size / 1024)}KB (${width}x${height})`);
+                                resolve(fallbackBlob);
+                            },
+                            outputFormat,
+                            outputQuality
+                        );
+                    }
+                },
+                'image/webp',
+                quality
+            );
+        };
+
+        img.onerror = () => {
+            URL.revokeObjectURL(url);
+            console.warn('Could not optimize image, using original');
+            resolve(imageBlob);
+        };
+
+        img.src = url;
+    });
+}
+
+/**
+ * Calculate optimal dimensions for an image based on its usage
+ */
+function calculateOptimalSize(slide) {
+    const carouselWidth = 980; // Desktop width
+    const slideHeight = carouselConfig.slideHeight || 340;
+
+    let maxWidth = carouselWidth;
+    let maxHeight = slideHeight;
+    let zoomBuffer = 1.0;
+
+    // Adjust based on slide type
+    switch (slide.type) {
+        case 'fullImage':
+            maxWidth = carouselWidth;
+            maxHeight = slideHeight;
+            // Check for Ken Burns effect
+            if (slide.kenBurns) {
+                zoomBuffer = 1.3; // 30% extra for zoom
+            }
+            break;
+
+        case 'fullImageWithText':
+        case 'fullVideoWithText':
+            maxWidth = carouselWidth;
+            maxHeight = slideHeight;
+            if (slide.kenBurns) {
+                zoomBuffer = 1.3;
+            }
+            break;
+
+        case 'imageSelector':
+            // Multiple images, could be zoomed
+            maxWidth = carouselWidth * 0.8; // Typically centered with some margin
+            maxHeight = slideHeight * 0.7;
+            break;
+
+        case 'bigNumber':
+        case 'text':
+            // Background images for text slides
+            maxWidth = carouselWidth;
+            maxHeight = slideHeight;
+            break;
+
+        default:
+            maxWidth = carouselWidth;
+            maxHeight = slideHeight;
+    }
+
+    return {
+        maxWidth,
+        maxHeight,
+        zoomBuffer
+    };
+}
+
 async function exportToZip() {
     // Smart save: Save before exporting
     if (carouselConfig) {
@@ -2186,10 +2447,92 @@ async function exportToZip() {
     const config = prepareConfigForExport();
     zip.file('config.json', JSON.stringify(config, null, 2));
 
-    // Add all uploaded assets
+    // Add all assets (fetch from server for loaded projects)
     const assetsFolder = zip.folder('assets');
-    for (const [filename, file] of uploadedAssets.entries()) {
-        assetsFolder.file(filename, file);
+
+    // Collect all asset filenames and their usage context from config
+    const assetInfoMap = new Map(); // filename -> { slide, isVideo, isPoster }
+
+    carouselConfig.slides.forEach(slide => {
+        if (slide.srcFilename) {
+            const isVideo = slide.type === 'video' || slide.type === 'fullVideoWithText';
+            assetInfoMap.set(slide.srcFilename, { slide, isVideo, isPoster: false });
+        }
+        if (slide.posterFilename) {
+            assetInfoMap.set(slide.posterFilename, { slide, isVideo: false, isPoster: true });
+        }
+        if (slide.images) {
+            slide.images.forEach(image => {
+                if (image.srcFilename) {
+                    assetInfoMap.set(image.srcFilename, { slide, isVideo: false, isPoster: false });
+                }
+            });
+        }
+    });
+
+    console.log(`Optimizing ${assetInfoMap.size} assets for export...`);
+    let totalOriginalSize = 0;
+    let totalOptimizedSize = 0;
+
+    // Fetch and add each asset with optimization
+    for (const [filename, info] of assetInfoMap.entries()) {
+        try {
+            let blob;
+
+            // First try to get from uploadedAssets Map (for newly uploaded files)
+            if (uploadedAssets.has(filename)) {
+                blob = uploadedAssets.get(filename);
+            } else {
+                // Otherwise fetch from server (for loaded projects)
+                const assetUrl = `/projects/${carouselConfig.carouselId}/assets/${filename}`;
+                const response = await fetch(assetUrl);
+                if (response.ok) {
+                    blob = await response.blob();
+                } else {
+                    console.warn(`Could not fetch asset: ${filename}`);
+                    continue;
+                }
+            }
+
+            // Optimize images (not videos)
+            if (!info.isVideo && blob.type.startsWith('image/')) {
+                totalOriginalSize += blob.size;
+                const optimalSize = calculateOptimalSize(info.slide);
+                const optimizedBlob = await optimizeImage(blob, {
+                    maxWidth: optimalSize.maxWidth,
+                    maxHeight: optimalSize.maxHeight,
+                    zoomBuffer: optimalSize.zoomBuffer,
+                    retinaMultiplier: 2,
+                    quality: 0.85
+                });
+                totalOptimizedSize += optimizedBlob.size;
+                assetsFolder.file(filename, optimizedBlob);
+            } else {
+                // Videos pass through unchanged (browser can't optimize videos)
+                const sizeInMB = (blob.size / (1024 * 1024)).toFixed(1);
+
+                if (blob.size > 10 * 1024 * 1024) {
+                    console.warn(`⚠️  Video ${filename} is ${sizeInMB}MB - consider optimizing before upload`);
+                    console.warn(`   Recommended: <5MB for ads, use HandBrake or similar tool`);
+                } else {
+                    console.log(`Video: ${filename} (${sizeInMB}MB) - no optimization available`);
+                }
+
+                assetsFolder.file(filename, blob);
+            }
+        } catch (error) {
+            console.error(`Error processing asset ${filename}:`, error);
+        }
+    }
+
+    // Log optimization summary
+    if (totalOriginalSize > 0) {
+        const savings = totalOriginalSize - totalOptimizedSize;
+        const savingsPercent = Math.round((savings / totalOriginalSize) * 100);
+        console.log(`✓ Image optimization complete!`);
+        console.log(`  Original: ${Math.round(totalOriginalSize / 1024)}KB`);
+        console.log(`  Optimized: ${Math.round(totalOptimizedSize / 1024)}KB`);
+        console.log(`  Saved: ${Math.round(savings / 1024)}KB (${savingsPercent}%)`);
     }
 
     // Add carousel runtime script
@@ -2197,9 +2540,30 @@ async function exportToZip() {
     zip.file('carousel-runtime.js', runtimeScript);
 
     // Add README
+    const savingsInfo = totalOriginalSize > 0
+        ? `\n## Image Optimization\n\nAll images have been automatically optimized for web delivery:\n- Sized for retina displays (2x pixel density)\n- Extra pixels for zoom effects (${Math.round((calculateOptimalSize(carouselConfig.slides[0] || {}).zoomBuffer - 1) * 100)}% buffer)\n- JPEG quality: 85%\n- Total savings: ${Math.round((totalOriginalSize - totalOptimizedSize) / 1024)}KB\n`
+        : '';
+
     const readme = `# Carousel Advertorial - ${carouselConfig.customerName || 'Untitled'}
 
 Carousel ID: ${carouselConfig.carouselId}
+${savingsInfo}
+## Video Optimization
+
+Videos are NOT automatically optimized (requires server-side tools).
+
+**Recommended settings for web ads:**
+- Format: MP4 (H.264 codec)
+- Resolution: 1920x1080 or lower
+- Bitrate: 2-5 Mbps
+- File size: <5MB per video
+- Tools: HandBrake, FFmpeg, or Adobe Media Encoder
+
+**Quick HandBrake settings:**
+- Preset: "Web" or "Fast 1080p30"
+- Framerate: 30fps
+- Quality: RF 23-28
+- Audio: AAC 128kbps
 
 ## Installation
 
@@ -2213,7 +2577,7 @@ Carousel ID: ${carouselConfig.carouselId}
 
 - config.json: Contains all slide configurations and settings
 - carousel-runtime.js: The runtime script that renders the carousel
-- assets/: All images and videos used in the carousel
+- assets/: Optimized images and safe-named videos
 
 ## Usage in Google Ad Manager
 
