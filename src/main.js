@@ -2,16 +2,27 @@ import JSZip from 'jszip';
 import { saveAs } from 'file-saver';
 import Sortable from 'sortablejs';
 import { slideTemplates } from './slideTemplates.js';
+import { ensureAuthenticated, getIdToken, signOut } from './auth.js';
 
 // State
-const API_BASE = '/api';
+const API_BASE = import.meta.env.VITE_API_BASE || '/api';
+const ASSETS_BASE = import.meta.env.VITE_ASSETS_BASE || '/projects';
+
+async function authFetch(url, options = {}) {
+    const token = getIdToken();
+    const headers = options.headers ? { ...options.headers } : {};
+    if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+    }
+    return fetch(url, { ...options, headers });
+}
 
 // API Helper Functions
 
 // Get all projects
 async function getAllProjects() {
     try {
-        const response = await fetch(`${API_BASE}/projects`);
+        const response = await authFetch(`${API_BASE}/projects`);
         const data = await response.json();
         return data.projects || [];
     } catch (e) {
@@ -23,7 +34,7 @@ async function getAllProjects() {
 // Get a specific project
 async function getProject(id) {
     try {
-        const response = await fetch(`${API_BASE}/projects/${id}`);
+        const response = await authFetch(`${API_BASE}/projects/${id}`);
         if (!response.ok) {
             throw new Error('Project not found');
         }
@@ -41,7 +52,7 @@ async function saveProject(config) {
         const id = config.carouselId;
         const url = `${API_BASE}/projects/${id}`;
 
-        const response = await fetch(url, {
+        const response = await authFetch(url, {
             method: 'PUT',
             headers: {
                 'Content-Type': 'application/json'
@@ -51,7 +62,7 @@ async function saveProject(config) {
 
         if (!response.ok) {
             // If PUT fails (project doesn't exist), try POST
-            const createResponse = await fetch(`${API_BASE}/projects`, {
+            const createResponse = await authFetch(`${API_BASE}/projects`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
@@ -71,7 +82,7 @@ async function saveProject(config) {
 // Delete a project
 async function deleteProject(id) {
     try {
-        const response = await fetch(`${API_BASE}/projects/${id}`, {
+        const response = await authFetch(`${API_BASE}/projects/${id}`, {
             method: 'DELETE'
         });
         return await response.json();
@@ -108,17 +119,31 @@ function generateSafeFilename(originalName, carouselId) {
 // Upload an asset
 async function uploadAsset(projectId, file, safeFilename) {
     try {
-        const formData = new FormData();
-        formData.append('file', file);
-        formData.append('customFilename', safeFilename); // Send custom filename
-
-        const response = await fetch(`${API_BASE}/projects/${projectId}/assets`, {
+        // Step 1: get presigned URL
+        const presignRes = await authFetch(`${API_BASE}/projects/${projectId}/assets`, {
             method: 'POST',
-            body: formData
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ filename: safeFilename }),
         });
+        if (!presignRes.ok) {
+            throw new Error('Failed to get upload URL');
+        }
+        const { uploadUrl, url, path } = await presignRes.json();
 
-        const result = await response.json();
-        return result.url; // Returns the URL to the uploaded file
+        // Step 2: upload direct to S3
+        const putRes = await fetch(uploadUrl, {
+            method: 'PUT',
+            headers: { 'Content-Type': file.type || 'application/octet-stream' },
+            body: file,
+        });
+        if (!putRes.ok) {
+            throw new Error('Upload to S3 failed');
+        }
+
+        // Store local reference for exports
+        uploadedAssets.set(safeFilename, file);
+
+        return url || path;
     } catch (e) {
         console.error('Could not upload asset:', e);
         throw e;
@@ -184,19 +209,24 @@ let previewMode = 'edit'; // 'edit' or 'preview'
 
 // Initialize
 document.addEventListener('DOMContentLoaded', () => {
-    // Show startup modal and wait for user choice
-    showStartupModal();
+    // Enforce authentication before loading UI
+    ensureAuthenticated().then(() => {
+        // Show startup modal and wait for user choice
+        showStartupModal();
 
-    // Setup event listeners (but don't initialize editor yet)
-    setupEventListeners();
-    setupStartupModalListeners();
+        // Setup event listeners (but don't initialize editor yet)
+        setupEventListeners();
+        setupStartupModalListeners();
 
-    // Auto-save every 30 seconds (only saves if carouselConfig exists)
-    setInterval(() => {
-        if (carouselConfig) {
-            autoSave();
-        }
-    }, 30000); // 30 seconds = 30000ms
+        // Auto-save every 30 seconds (only saves if carouselConfig exists)
+        setInterval(() => {
+            if (carouselConfig) {
+                autoSave();
+            }
+        }, 30000); // 30 seconds = 30000ms
+    }).catch((err) => {
+        console.error('Auth initialization failed', err);
+    });
 });
 
 function generateId() {
@@ -363,8 +393,8 @@ function setupEventListeners() {
         });
     });
 
-    // Export button
-    document.getElementById('exportBtn').addEventListener('click', exportToZip);
+    // Share Preview button
+    document.getElementById('shareBtn').addEventListener('click', sharePreview);
 
     // New project button
     document.getElementById('newProjectBtn').addEventListener('click', () => {
@@ -2435,6 +2465,47 @@ function calculateOptimalSize(slide) {
     };
 }
 
+async function sharePreview() {
+    // Save before sharing
+    if (carouselConfig) {
+        await manualSave();
+    }
+
+    if (!carouselConfig) {
+        alert('No carousel to share');
+        return;
+    }
+
+    // Generate preview URL
+    const editorDomain = window.location.origin;
+    const previewUrl = `${editorDomain}/preview.html?id=${carouselConfig.carouselId}`;
+
+    // Copy to clipboard
+    try {
+        await navigator.clipboard.writeText(previewUrl);
+
+        // Show success feedback
+        const btn = document.getElementById('shareBtn');
+        const originalHTML = btn.innerHTML;
+        btn.innerHTML = '<i data-lucide="check" style="width: 16px; height: 16px;"></i> Link Copied!';
+        btn.style.background = '#4ade80';
+
+        // Also show alert with the URL
+        alert(`Preview link copied to clipboard!\n\n${previewUrl}\n\nShare this link to preview the carousel.`);
+
+        // Reset button after 3 seconds
+        setTimeout(() => {
+            btn.innerHTML = originalHTML;
+            btn.style.background = '';
+            lucide.createIcons();
+        }, 3000);
+    } catch (error) {
+        // Fallback if clipboard API fails
+        prompt('Copy this preview link:', previewUrl);
+    }
+}
+
+// Keep old export function (not used anymore)
 async function exportToZip() {
     // Smart save: Save before exporting
     if (carouselConfig) {
@@ -2484,7 +2555,7 @@ async function exportToZip() {
                 blob = uploadedAssets.get(filename);
             } else {
                 // Otherwise fetch from server (for loaded projects)
-                const assetUrl = `/projects/${carouselConfig.carouselId}/assets/${filename}`;
+                const assetUrl = `${ASSETS_BASE.replace(/\/$/, '')}/${carouselConfig.carouselId}/assets/${filename}`;
                 const response = await fetch(assetUrl);
                 if (response.ok) {
                     blob = await response.blob();

@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Carousel Preview</title>
+  <style>
+    body { margin: 0; background: #0f172a; color: #e2e8f0; font-family: Arial, sans-serif; display: flex; flex-direction: column; align-items: center; }
+    header { width: 100%; max-width: 1100px; padding: 16px; box-sizing: border-box; }
+    main { width: 100%; max-width: 1100px; padding: 16px; box-sizing: border-box; }
+    #container { width: 100%; min-height: 640px; background: #111827; border: 1px solid #1f2937; border-radius: 12px; padding: 12px; box-sizing: border-box; }
+    .info { font-size: 14px; color: #94a3b8; margin-bottom: 8px; }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="info">Previewing carousel via configUrl or id query parameter.</div>
+  </header>
+  <main>
+    <div id="container"></div>
+  </main>
+  <script>
+    (function() {
+      const params = new URLSearchParams(window.location.search);
+      let configUrl = params.get('configUrl');
+      const id = params.get('id');
+
+      if (!configUrl && id) {
+        const publicCdn = (import.meta && import.meta.env && import.meta.env.VITE_ASSETS_BASE) || '';
+        const base = publicCdn || window.location.origin;
+        configUrl = `${base.replace(/\\/$/, '')}/public/${id}/config.json`;
+      }
+
+      if (!configUrl) {
+        document.getElementById('container').innerHTML = '<p style="color:#fca5a5">Missing configUrl or id in query string.</p>';
+        return;
+      }
+
+      window.carouselConfigUrl = configUrl;
+      const script = document.createElement('script');
+      script.src = './carousel-runtime.js';
+      script.onload = () => {
+        // runtime attaches itself and looks for window.carouselConfigUrl
+      };
+      script.onerror = () => {
+        document.getElementById('container').innerHTML = '<p style="color:#fca5a5">Failed to load runtime.</p>';
+      };
+      document.body.appendChild(script);
+    })();
+  </script>
+</body>
+</html>

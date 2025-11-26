@@ -1,0 +1,170 @@
+<!--
+Google Ad Manager Creative Template - Content Carousel
+======================================================
+
+HOW TO SET UP IN GAM:
+1. Go to Delivery > Creatives > New Creative > Custom Creative
+2. Copy this entire template into the "Code snippet" field
+3. Add a macro/variable for carousel_id
+4. Set the size to match your ad unit (e.g., 980x516)
+5. Save and preview
+
+MACRO/VARIABLE TO DEFINE IN GAM:
+- Name: carousel_id
+- Type: Text
+- Description: The ID of the carousel to display
+- Example value: 315460247
+-->
+
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            overflow: hidden;
+        }
+
+        #carousel-container {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        /* Loading state */
+        .carousel-loading {
+            text-align: center;
+            padding: 40px;
+            color: #666;
+        }
+
+        .carousel-loading-spinner {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #333;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 15px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* Error state */
+        .carousel-error {
+            text-align: center;
+            padding: 40px;
+            color: #e74c3c;
+        }
+    </style>
+</head>
+<body>
+    <!-- Container for the carousel -->
+    <div id="carousel-container">
+        <div class="carousel-loading">
+            <div class="carousel-loading-spinner"></div>
+            <p>Loading carousel...</p>
+        </div>
+    </div>
+
+    <script>
+        (function() {
+            // ==============================================================
+            // CONFIGURATION - Replace %%CAROUSEL_ID%% with your GAM macro
+            // ==============================================================
+
+            // Option 1: Using GAM macro (recommended)
+            var carouselId = '%%CAROUSEL_ID%%';
+
+            // Option 2: Hardcoded (for testing only)
+            // var carouselId = '315460247';
+
+            // CDN URLs
+            var CDN_BASE = 'https://d3bxz3apzcc1z.cloudfront.net';
+            var CONFIG_URL = CDN_BASE + '/public/' + carouselId + '/config.json';
+            var RUNTIME_URL = CDN_BASE + '/public/carousel-runtime.js';
+
+            // ==============================================================
+            // CAROUSEL INITIALIZATION
+            // ==============================================================
+
+            // Validate carousel ID
+            if (!carouselId || carouselId === '%%CAROUSEL_ID%%') {
+                showError('Carousel ID not configured. Please set the CAROUSEL_ID macro in GAM.');
+                return;
+            }
+
+            // Set config URL for carousel runtime
+            window.carouselConfigUrl = CONFIG_URL;
+
+            // Load carousel runtime
+            var script = document.createElement('script');
+            script.src = RUNTIME_URL;
+            script.async = true;
+
+            script.onerror = function() {
+                showError('Failed to load carousel runtime. Please check your CDN configuration.');
+            };
+
+            // Optionally verify config exists before loading runtime
+            fetch(CONFIG_URL)
+                .then(function(response) {
+                    if (!response.ok) {
+                        throw new Error('Carousel not found (ID: ' + carouselId + ')');
+                    }
+                    // Config exists, load the runtime
+                    document.head.appendChild(script);
+                })
+                .catch(function(error) {
+                    showError(error.message);
+                });
+
+            // ==============================================================
+            // HELPER FUNCTIONS
+            // ==============================================================
+
+            function showError(message) {
+                var container = document.getElementById('carousel-container');
+                container.innerHTML =
+                    '<div class="carousel-error">' +
+                    '<h3>Error Loading Carousel</h3>' +
+                    '<p>' + message + '</p>' +
+                    '</div>';
+            }
+
+            // ==============================================================
+            // CLICKTAG TRACKING (Optional - for GAM click tracking)
+            // ==============================================================
+
+            // If you need to track clicks in GAM, uncomment and configure:
+            /*
+            window.addEventListener('load', function() {
+                var clickableElements = document.querySelectorAll('.content-box a, .content-box button');
+                clickableElements.forEach(function(element) {
+                    element.addEventListener('click', function(e) {
+                        // Track click with GAM
+                        if (window.parent && window.parent.postMessage) {
+                            window.parent.postMessage('click', '*');
+                        }
+                    });
+                });
+            });
+            */
+
+        })();
+    </script>
+</body>
+</html>

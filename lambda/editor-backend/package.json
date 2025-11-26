@@ -1,0 +1,9 @@
+{
+  "name": "editor-backend",
+  "version": "1.0.0",
+  "description": "Editor backend Lambda",
+  "main": "index.js",
+  "dependencies": {
+    "aws-sdk": "^2.1691.0"
+  }
+}

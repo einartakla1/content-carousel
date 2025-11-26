@@ -656,7 +656,24 @@
         if (slide.link) {
             box.style.cursor = 'pointer';
             box.addEventListener('click', () => {
-                window.open(slide.link, '_blank');
+                var finalUrl = slide.link;
+                console.log('[Carousel] GAM Click - Original URL:', slide.link);
+                console.log('[Carousel] GAM Click - window.gamClickUrl:', window.gamClickUrl);
+
+                // Check if gamClickUrl is valid (not a placeholder macro and not empty)
+                var isValidGamUrl = window.gamClickUrl &&
+                                    typeof window.gamClickUrl === 'string' &&
+                                    window.gamClickUrl.trim() !== '' &&
+                                    !window.gamClickUrl.includes('%%') &&
+                                    !window.gamClickUrl.includes('CLICK_URL');
+
+                if (isValidGamUrl) {
+                    finalUrl = window.gamClickUrl + encodeURIComponent(slide.link);
+                    console.log('[Carousel] GAM Click - Wrapped URL:', finalUrl);
+                } else {
+                    console.log('[Carousel] GAM Click - Using original URL (no valid GAM tracking URL)');
+                }
+                window.open(finalUrl, '_blank');
             });
         }
 
@@ -793,7 +810,24 @@
         if (slide.link) {
             box.style.cursor = 'pointer';
             box.addEventListener('click', () => {
-                window.open(slide.link, '_blank');
+                var finalUrl = slide.link;
+                console.log('[Carousel] GAM Click - Original URL:', slide.link);
+                console.log('[Carousel] GAM Click - window.gamClickUrl:', window.gamClickUrl);
+
+                // Check if gamClickUrl is valid (not a placeholder macro and not empty)
+                var isValidGamUrl = window.gamClickUrl &&
+                                    typeof window.gamClickUrl === 'string' &&
+                                    window.gamClickUrl.trim() !== '' &&
+                                    !window.gamClickUrl.includes('%%') &&
+                                    !window.gamClickUrl.includes('CLICK_URL');
+
+                if (isValidGamUrl) {
+                    finalUrl = window.gamClickUrl + encodeURIComponent(slide.link);
+                    console.log('[Carousel] GAM Click - Wrapped URL:', finalUrl);
+                } else {
+                    console.log('[Carousel] GAM Click - Using original URL (no valid GAM tracking URL)');
+                }
+                window.open(finalUrl, '_blank');
             });
         }
 
@@ -1088,7 +1122,27 @@
     function createButton(buttonConfig) {
         const button = document.createElement('a');
         button.className = 'content-button';
-        button.href = buttonConfig.url || '#';
+        var originalUrl = buttonConfig.url || '#';
+        var finalUrl = originalUrl;
+
+        console.log('[Carousel] GAM Button - Original URL:', originalUrl);
+        console.log('[Carousel] GAM Button - window.gamClickUrl:', window.gamClickUrl);
+
+        // Check if gamClickUrl is valid (not a placeholder macro and not empty)
+        var isValidGamUrl = window.gamClickUrl &&
+                            typeof window.gamClickUrl === 'string' &&
+                            window.gamClickUrl.trim() !== '' &&
+                            !window.gamClickUrl.includes('%%') &&
+                            !window.gamClickUrl.includes('CLICK_URL');
+
+        if (isValidGamUrl) {
+            finalUrl = window.gamClickUrl + encodeURIComponent(originalUrl);
+            console.log('[Carousel] GAM Button - Wrapped URL:', finalUrl);
+        } else {
+            console.log('[Carousel] GAM Button - Using original URL (no valid GAM tracking URL)');
+        }
+
+        button.href = finalUrl;
         button.target = '_blank';
         button.textContent = buttonConfig.text || 'Les mer';
         button.style.backgroundColor = buttonConfig.color || '#13264A';
