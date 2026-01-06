@@ -1,5 +1,5 @@
 import JSZip from 'jszip';
-import { saveAs } from 'file-saver';
+import saveAs from 'file-saver';
 import Sortable from 'sortablejs';
 import { slideTemplates } from './slideTemplates.js';
 import { ensureAuthenticated, getIdToken, signOut } from './auth.js';
@@ -7,6 +7,9 @@ import { ensureAuthenticated, getIdToken, signOut } from './auth.js';
 // State
 const API_BASE = import.meta.env.VITE_API_BASE || '/api';
 const ASSETS_BASE = import.meta.env.VITE_ASSETS_BASE || '/projects';
+
+// Track current view mode (draft or published)
+let currentViewMode = 'draft'; // 'draft' or 'published'
 
 async function authFetch(url, options = {}) {
     const token = getIdToken();
@@ -32,9 +35,12 @@ async function getAllProjects() {
 }
 
 // Get a specific project
-async function getProject(id) {
+async function getProject(id, source = null) {
     try {
-        const response = await authFetch(`${API_BASE}/projects/${id}`);
+        // Use currentViewMode if source not explicitly provided
+        const viewSource = source || currentViewMode;
+        const url = `${API_BASE}/projects/${id}?source=${viewSource}`;
+        const response = await authFetch(url);
         if (!response.ok) {
             throw new Error('Project not found');
         }
@@ -201,11 +207,91 @@ async function manualSave() {
     }
 }
 
+// Switch between draft and published views
+async function switchView(mode) {
+    if (!carouselConfig) return;
+
+    currentViewMode = mode;
+
+    // Update button styles
+    const draftBtn = document.getElementById('viewDraft');
+    const publishedBtn = document.getElementById('viewPublished');
+
+    if (mode === 'draft') {
+        draftBtn.classList.add('active');
+        publishedBtn.classList.remove('active');
+    } else {
+        publishedBtn.classList.add('active');
+        draftBtn.classList.remove('active');
+    }
+
+    // Reload the carousel in the selected mode
+    try {
+        const id = carouselConfig.carouselId;
+        const config = await getProject(id, mode);
+        if (config) {
+            carouselConfig = config;
+
+            // Update all form fields to reflect the loaded config
+            initializeEditor();
+
+            // Update preview
+            updatePreview();
+
+            // Update status message
+            const publishStatus = document.getElementById('publishStatus');
+            if (publishStatus) {
+                publishStatus.textContent = mode === 'draft' ? 'Viewing Draft' : 'Viewing Published Version';
+            }
+        }
+    } catch (e) {
+        console.error('Failed to switch view:', e);
+        alert(`Failed to load ${mode} version`);
+    }
+}
+
+// Publish draft changes to production
+async function publishChanges() {
+    if (!carouselConfig) return;
+
+    if (!confirm('Publish draft to production?\n\nThis will make the draft version live and visible to users.')) {
+        return;
+    }
+
+    try {
+        const id = carouselConfig.carouselId;
+        const response = await authFetch(`${API_BASE}/projects/${id}/publish`, {
+            method: 'POST'
+        });
+
+        if (!response.ok) {
+            throw new Error('Publish failed');
+        }
+
+        // Show success feedback
+        const publishStatus = document.getElementById('publishStatus');
+        if (publishStatus) {
+            publishStatus.textContent = '✓ Published successfully!';
+            publishStatus.style.color = '#4ade80';
+            setTimeout(() => {
+                publishStatus.textContent = 'Viewing Draft';
+                publishStatus.style.color = 'rgba(255,255,255,0.6)';
+            }, 3000);
+        }
+
+        alert('Changes published successfully!');
+    } catch (e) {
+        console.error('Publish failed:', e);
+        alert('Failed to publish changes. Please try again.');
+    }
+}
+
 let carouselConfig = null; // Will be initialized when user creates or loads a project
 
 let uploadedAssets = new Map(); // Map to store uploaded files
 let currentEditingSlideIndex = null;
 let previewMode = 'edit'; // 'edit' or 'preview'
+let focusMode = true; // When true, show only the currently edited slide in preview (PowerPoint-style)
 
 // Initialize
 document.addEventListener('DOMContentLoaded', () => {
@@ -268,6 +354,8 @@ async function createNewCarousel() {
         autoRotateDelay: 4000,
         carouselHeight: 516,
         slideHeight: 340,
+        enableGlobalLink: false,
+        globalLink: '',
         slides: []
     };
 
@@ -324,6 +412,14 @@ function initializeEditor() {
     document.getElementById('carouselHeight').value = carouselConfig.carouselHeight;
     document.getElementById('slideHeight').value = carouselConfig.slideHeight;
 
+    // Initialize global link - use enableGlobalLink field if available, fallback to checking if URL exists
+    const isEnabled = carouselConfig.enableGlobalLink !== undefined
+        ? carouselConfig.enableGlobalLink
+        : (carouselConfig.globalLink && carouselConfig.globalLink.trim() !== '');
+    document.getElementById('enableGlobalLink').checked = isEnabled;
+    document.getElementById('globalLink').value = carouselConfig.globalLink || '';
+    document.getElementById('globalLinkGroup').style.display = isEnabled ? 'block' : 'none';
+
     // Initialize slides list
     renderSlidesList();
 }
@@ -373,6 +469,24 @@ function setupEventListeners() {
         updatePreview();
     });
 
+    // Global link checkbox
+    document.getElementById('enableGlobalLink').addEventListener('change', (e) => {
+        const enabled = e.target.checked;
+        carouselConfig.enableGlobalLink = enabled;
+        document.getElementById('globalLinkGroup').style.display = enabled ? 'block' : 'none';
+        if (!enabled) {
+            // Don't clear the URL, just disable the feature
+            // This way the URL is preserved if user re-enables
+        }
+        updatePreview();
+    });
+
+    // Global link input
+    document.getElementById('globalLink').addEventListener('input', (e) => {
+        carouselConfig.globalLink = e.target.value;
+        updatePreview();
+    });
+
     // Add slide button
     document.getElementById('addSlideBtn').addEventListener('click', () => {
         document.getElementById('addSlideModal').classList.add('active');
@@ -415,6 +529,20 @@ function setupEventListeners() {
         }
     });
 
+    // View switcher buttons
+    document.getElementById('viewDraft').addEventListener('click', () => {
+        switchView('draft');
+    });
+
+    document.getElementById('viewPublished').addEventListener('click', () => {
+        switchView('published');
+    });
+
+    // Publish button
+    document.getElementById('publishBtn').addEventListener('click', () => {
+        publishChanges();
+    });
+
     // Keyboard shortcut for save (Cmd+S / Ctrl+S)
     document.addEventListener('keydown', (e) => {
         if ((e.metaKey || e.ctrlKey) && e.key === 's') {
@@ -440,6 +568,24 @@ function setupEventListeners() {
 
     // Refresh preview button
     document.getElementById('refreshPreviewBtn').addEventListener('click', () => {
+        updatePreview();
+    });
+
+    // Focus mode button (single slide vs full carousel)
+    document.getElementById('focusModeBtn').addEventListener('click', () => {
+        const focusBtn = document.getElementById('focusModeBtn');
+        focusMode = !focusMode;
+
+        // Update button state
+        if (focusMode) {
+            focusBtn.classList.add('active');
+            focusBtn.title = 'Single Slide View (click to show full carousel)';
+        } else {
+            focusBtn.classList.remove('active');
+            focusBtn.title = 'Full Carousel View (click to show single slide)';
+        }
+
+        // Refresh preview
         updatePreview();
     });
 
@@ -498,6 +644,7 @@ function renderSlidesList() {
             item.classList.add('active');
         }
 
+        const isVisible = slide.visible !== false; // Default to true if not set
         item.innerHTML = `
             <div class="slide-item-header">
                 <div style="display: flex; align-items: center; gap: 12px; flex: 1;">
@@ -509,11 +656,19 @@ function renderSlidesList() {
                         </svg>
                     </span>
                     <div style="flex: 1;">
-                        <div class="slide-item-title">${slide.name || `Slide ${index + 1}`}</div>
+                        <div class="slide-item-title">${slide.name || `Slide ${index + 1}`} ${!isVisible ? '<span style="opacity: 0.5; font-size: 12px;">(Hidden)</span>' : ''}</div>
                         <div class="slide-item-type">${getSlideTypeName(slide.type)}</div>
                     </div>
                 </div>
                 <div class="slide-item-actions" onclick="event.stopPropagation();">
+                    <button class="btn-icon ${!isVisible ? 'opacity-50' : ''}" onclick="window.toggleSlideVisibility(${index})" title="${isVisible ? 'Hide slide' : 'Show slide'}" style="margin-right: 4px;">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            ${isVisible ?
+                                '<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle>' :
+                                '<path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path><line x1="1" y1="1" x2="23" y2="23"></line>'
+                            }
+                        </svg>
+                    </button>
                     <button class="btn-secondary btn-small" onclick="window.duplicateSlide(${index})" style="margin-right: 4px;">Duplicate</button>
                     <button class="btn-danger btn-small" onclick="window.deleteSlide(${index})">Delete</button>
                 </div>
@@ -576,8 +731,13 @@ window.editSlide = (index) => {
     renderSlidesList();
     renderSlideEditor(index);
 
-    // Scroll preview to the selected slide
-    scrollPreviewToSlide(index);
+    // In focus mode (single slide view), regenerate preview with the new slide
+    // In full carousel mode, just scroll to the selected slide
+    if (focusMode) {
+        updatePreview();
+    } else {
+        scrollPreviewToSlide(index);
+    }
 };
 
 window.deleteSlide = (index) => {
@@ -624,6 +784,105 @@ window.duplicateSlide = (index) => {
     window.editSlide(index + 1);
 };
 
+window.toggleSlideVisibility = (index) => {
+    const slide = carouselConfig.slides[index];
+    // Toggle visibility (default to true if not set)
+    slide.visible = slide.visible === false ? true : false;
+
+    // Refresh UI
+    renderSlidesList();
+    updatePreview();
+};
+
+window.changeSlideType = (index, newType) => {
+    const currentSlide = carouselConfig.slides[index];
+
+    if (currentSlide.type === newType) return; // No change needed
+
+    // Confirm the change
+    if (!confirm('Changing the slide type will reset type-specific properties. Compatible properties (name, size, button, etc.) will be preserved. Continue?')) {
+        // Revert the dropdown selection
+        renderSlideEditor(index);
+        return;
+    }
+
+    // Get the new template
+    const newTemplate = JSON.parse(JSON.stringify(slideTemplates[newType]));
+
+    // Preserve compatible properties
+    const compatibleProps = ['name', 'size', 'mobileSize', 'visible', 'link', 'button'];
+    compatibleProps.forEach(prop => {
+        if (currentSlide[prop] !== undefined) {
+            newTemplate[prop] = currentSlide[prop];
+        }
+    });
+
+    // Replace the slide
+    carouselConfig.slides[index] = newTemplate;
+
+    // Refresh UI
+    renderSlidesList();
+    renderSlideEditor(index);
+    updatePreview();
+};
+
+// Project management functions
+window.duplicateProject = async (projectId) => {
+    try {
+        // Load the project configuration
+        const config = await getProject(projectId);
+
+        if (!config) {
+            alert('Failed to load project for duplication');
+            return;
+        }
+
+        // Generate new unique ID
+        const newId = Date.now();
+
+        // Update config with new ID and name
+        config.carouselId = newId;
+        config.carouselName = (config.carouselName || 'Untitled') + ' (Copy)';
+
+        // Save as new project
+        const result = await saveProject(config);
+
+        if (result && result.success) {
+            alert(`Carousel duplicated successfully! New ID: ${newId}`);
+            // Refresh the projects list
+            showLoadProjectModal();
+        } else {
+            alert('Failed to duplicate carousel');
+        }
+    } catch (error) {
+        console.error('Error duplicating project:', error);
+        alert('Failed to duplicate carousel: ' + error.message);
+    }
+};
+
+window.deleteProjectById = async (projectId, fromStartup = false) => {
+    if (!confirm(`Are you sure you want to delete this carousel (ID: ${projectId})? This cannot be undone.`)) {
+        return;
+    }
+
+    try {
+        const response = await authFetch(`${API_BASE}/projects/${projectId}`, {
+            method: 'DELETE'
+        });
+
+        if (response.ok) {
+            alert('Carousel deleted successfully');
+            // Refresh the projects list
+            showLoadProjectModal(fromStartup);
+        } else {
+            alert('Failed to delete carousel');
+        }
+    } catch (error) {
+        console.error('Error deleting project:', error);
+        alert('Failed to delete carousel: ' + error.message);
+    }
+};
+
 function initializeLucideIcons() {
     if (typeof lucide !== 'undefined') {
         lucide.createIcons();
@@ -640,6 +899,19 @@ function renderSlideEditor(index) {
 
     // Common fields
     const commonFields = `
+        <div class="form-group">
+            <label>Slide Type</label>
+            <select id="slide-type" onchange="window.changeSlideType(${index}, this.value)">
+                <option value="fullImage" ${slide.type === 'fullImage' ? 'selected' : ''}>Full Image</option>
+                <option value="fullImageWithText" ${slide.type === 'fullImageWithText' ? 'selected' : ''}>Image with Text</option>
+                <option value="text" ${slide.type === 'text' ? 'selected' : ''}>Text Only</option>
+                <option value="video" ${slide.type === 'video' ? 'selected' : ''}>Video</option>
+                <option value="fullVideoWithText" ${slide.type === 'fullVideoWithText' ? 'selected' : ''}>Video with Text</option>
+                <option value="bigNumber" ${slide.type === 'bigNumber' ? 'selected' : ''}>Big Numbers</option>
+                <option value="imageSelector" ${slide.type === 'imageSelector' ? 'selected' : ''}>Image Selector</option>
+            </select>
+            <p class="help-text">Change the slide type - compatible properties will be preserved</p>
+        </div>
         <div class="form-group">
             <label>Slide Name (internal use)</label>
             <input type="text" id="slide-name" value="${slide.name || ''}" placeholder="e.g., Hero Image, Product Shot">
@@ -926,11 +1198,29 @@ function renderFullImageWithTextEditor(container, slide, index) {
                 </div>
                 <div class="form-group">
                     <label>Title Font Size (px)</label>
-                    <input type="number" id="slide-titleFontSize" value="${slide.titleFontSize || 24}" min="12" max="48">
+                    <div class="form-row">
+                        <div class="form-group" style="flex: 1;">
+                            <label style="font-size: 12px; color: #666;">Desktop</label>
+                            <input type="number" id="slide-titleFontSize" value="${slide.titleFontSize || 24}" min="12" max="48">
+                        </div>
+                        <div class="form-group" style="flex: 1;">
+                            <label style="font-size: 12px; color: #666;">Mobile</label>
+                            <input type="number" id="slide-titleFontSizeMobile" value="${slide.titleFontSizeMobile || 16}" min="12" max="48">
+                        </div>
+                    </div>
                 </div>
                 <div class="form-group">
                     <label>Text Font Size (px)</label>
-                    <input type="number" id="slide-textFontSize" value="${slide.textFontSize || 14}" min="10" max="32">
+                    <div class="form-row">
+                        <div class="form-group" style="flex: 1;">
+                            <label style="font-size: 12px; color: #666;">Desktop</label>
+                            <input type="number" id="slide-textFontSize" value="${slide.textFontSize || 14}" min="10" max="32">
+                        </div>
+                        <div class="form-group" style="flex: 1;">
+                            <label style="font-size: 12px; color: #666;">Mobile</label>
+                            <input type="number" id="slide-textFontSizeMobile" value="${slide.textFontSizeMobile || 12}" min="10" max="32">
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -1044,8 +1334,18 @@ function renderFullImageWithTextEditor(container, slide, index) {
         updatePreview();
     });
 
+    document.getElementById('slide-titleFontSizeMobile').addEventListener('input', (e) => {
+        slide.titleFontSizeMobile = parseInt(e.target.value);
+        updatePreview();
+    });
+
     document.getElementById('slide-textFontSize').addEventListener('input', (e) => {
         slide.textFontSize = parseInt(e.target.value);
+        updatePreview();
+    });
+
+    document.getElementById('slide-textFontSizeMobile').addEventListener('input', (e) => {
+        slide.textFontSizeMobile = parseInt(e.target.value);
         updatePreview();
     });
 
@@ -1079,15 +1379,36 @@ function renderTextEditor(container, slide, index) {
             <label>Text Color</label>
             <input type="color" id="slide-textColor" value="${slide.textColor || '#333333'}">
         </div>
-        <div class="form-row">
-            <div class="form-group">
-                <label>Title Font Size (px)</label>
-                <input type="number" id="slide-titleFontSize" value="${slide.titleFontSize || 22}" min="12" max="48">
+        <div class="form-group">
+            <label>Title Font Size (px)</label>
+            <div class="form-row">
+                <div class="form-group" style="flex: 1;">
+                    <label style="font-size: 12px; color: #666;">Desktop</label>
+                    <input type="number" id="slide-titleFontSize" value="${slide.titleFontSize || 22}" min="12" max="48">
+                </div>
+                <div class="form-group" style="flex: 1;">
+                    <label style="font-size: 12px; color: #666;">Mobile</label>
+                    <input type="number" id="slide-titleFontSizeMobile" value="${slide.titleFontSizeMobile || 18}" min="12" max="48">
+                </div>
             </div>
-            <div class="form-group">
-                <label>Text Font Size (px)</label>
-                <input type="number" id="slide-textFontSize" value="${slide.textFontSize || 16}" min="10" max="32">
+        </div>
+        <div class="form-group">
+            <label>Text Font Size (px)</label>
+            <div class="form-row">
+                <div class="form-group" style="flex: 1;">
+                    <label style="font-size: 12px; color: #666;">Desktop</label>
+                    <input type="number" id="slide-textFontSize" value="${slide.textFontSize || 16}" min="10" max="32">
+                </div>
+                <div class="form-group" style="flex: 1;">
+                    <label style="font-size: 12px; color: #666;">Mobile</label>
+                    <input type="number" id="slide-textFontSizeMobile" value="${slide.textFontSizeMobile || 14}" min="10" max="32">
+                </div>
             </div>
+        </div>
+        <div class="form-group">
+            <label>Link URL from slide (optional)</label>
+            <input type="url" id="slide-link" value="${slide.link || ''}" placeholder="https://example.com">
+            <p class="help-text">Makes the entire slide clickable (overridden by button if present)</p>
         </div>
         ${renderButtonEditor(slide, index)}
     `;
@@ -1125,8 +1446,23 @@ function renderTextEditor(container, slide, index) {
         updatePreview();
     });
 
+    document.getElementById('slide-titleFontSizeMobile').addEventListener('input', (e) => {
+        slide.titleFontSizeMobile = parseInt(e.target.value);
+        updatePreview();
+    });
+
     document.getElementById('slide-textFontSize').addEventListener('input', (e) => {
         slide.textFontSize = parseInt(e.target.value);
+        updatePreview();
+    });
+
+    document.getElementById('slide-textFontSizeMobile').addEventListener('input', (e) => {
+        slide.textFontSizeMobile = parseInt(e.target.value);
+        updatePreview();
+    });
+
+    document.getElementById('slide-link').addEventListener('input', (e) => {
+        slide.link = e.target.value;
         updatePreview();
     });
 
@@ -1157,6 +1493,11 @@ function renderVideoEditor(container, slide, index) {
             <label>Alt Text</label>
             <input type="text" id="slide-alt" value="${slide.alt || ''}" placeholder="Description of the video">
         </div>
+        <div class="form-group">
+            <label>Link URL from slide (optional)</label>
+            <input type="url" id="slide-link" value="${slide.link || ''}" placeholder="https://example.com">
+            <p class="help-text">Makes the entire slide clickable (overridden by button if present)</p>
+        </div>
         ${renderButtonEditor(slide, index)}
     `;
 
@@ -1183,6 +1524,11 @@ function renderVideoEditor(container, slide, index) {
 
     document.getElementById('slide-alt').addEventListener('input', (e) => {
         slide.alt = e.target.value;
+    });
+
+    document.getElementById('slide-link').addEventListener('input', (e) => {
+        slide.link = e.target.value;
+        updatePreview();
     });
 
     setupButtonEditorListeners(slide, index);
@@ -1247,11 +1593,29 @@ function renderFullVideoWithTextEditor(container, slide, index) {
                 </div>
                 <div class="form-group">
                     <label>Title Font Size (px)</label>
-                    <input type="number" id="slide-titleFontSize" value="${slide.titleFontSize || 24}" min="12" max="48">
+                    <div class="form-row">
+                        <div class="form-group" style="flex: 1;">
+                            <label style="font-size: 12px; color: #666;">Desktop</label>
+                            <input type="number" id="slide-titleFontSize" value="${slide.titleFontSize || 24}" min="12" max="48">
+                        </div>
+                        <div class="form-group" style="flex: 1;">
+                            <label style="font-size: 12px; color: #666;">Mobile</label>
+                            <input type="number" id="slide-titleFontSizeMobile" value="${slide.titleFontSizeMobile || 16}" min="12" max="48">
+                        </div>
+                    </div>
                 </div>
                 <div class="form-group">
                     <label>Text Font Size (px)</label>
-                    <input type="number" id="slide-textFontSize" value="${slide.textFontSize || 14}" min="10" max="32">
+                    <div class="form-row">
+                        <div class="form-group" style="flex: 1;">
+                            <label style="font-size: 12px; color: #666;">Desktop</label>
+                            <input type="number" id="slide-textFontSize" value="${slide.textFontSize || 14}" min="10" max="32">
+                        </div>
+                        <div class="form-group" style="flex: 1;">
+                            <label style="font-size: 12px; color: #666;">Mobile</label>
+                            <input type="number" id="slide-textFontSizeMobile" value="${slide.textFontSizeMobile || 12}" min="10" max="32">
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -1312,6 +1676,11 @@ function renderFullVideoWithTextEditor(container, slide, index) {
                     </select>
                 </div>
             </div>
+        </div>
+        <div class="form-group">
+            <label>Link URL from slide (optional)</label>
+            <input type="url" id="slide-link" value="${slide.link || ''}" placeholder="https://example.com">
+            <p class="help-text">Makes the entire slide clickable (overridden by button if present)</p>
         </div>
         ${renderButtonEditor(slide, index)}
     `;
@@ -1376,8 +1745,18 @@ function renderFullVideoWithTextEditor(container, slide, index) {
         updatePreview();
     });
 
+    document.getElementById('slide-titleFontSizeMobile').addEventListener('input', (e) => {
+        slide.titleFontSizeMobile = parseInt(e.target.value);
+        updatePreview();
+    });
+
     document.getElementById('slide-textFontSize').addEventListener('input', (e) => {
         slide.textFontSize = parseInt(e.target.value);
+        updatePreview();
+    });
+
+    document.getElementById('slide-textFontSizeMobile').addEventListener('input', (e) => {
+        slide.textFontSizeMobile = parseInt(e.target.value);
         updatePreview();
     });
 
@@ -1421,6 +1800,11 @@ function renderFullVideoWithTextEditor(container, slide, index) {
         updatePreview();
     });
 
+    document.getElementById('slide-link').addEventListener('input', (e) => {
+        slide.link = e.target.value;
+        updatePreview();
+    });
+
     setupButtonEditorListeners(slide, index);
 }
 
@@ -1454,15 +1838,36 @@ function renderBigNumberEditor(container, slide, index) {
             <label>Text Color</label>
             <input type="color" id="slide-textColor" value="${slide.textColor || '#333333'}">
         </div>
-        <div class="form-row">
-            <div class="form-group">
-                <label>Number Font Size (px)</label>
-                <input type="number" id="slide-numberFontSize" value="${slide.numberFontSize || 40}" min="20" max="80">
+        <div class="form-group">
+            <label>Number Font Size (px)</label>
+            <div class="form-row">
+                <div class="form-group" style="flex: 1;">
+                    <label style="font-size: 12px; color: #666;">Desktop</label>
+                    <input type="number" id="slide-numberFontSize" value="${slide.numberFontSize || 40}" min="20" max="80">
+                </div>
+                <div class="form-group" style="flex: 1;">
+                    <label style="font-size: 12px; color: #666;">Mobile</label>
+                    <input type="number" id="slide-numberFontSizeMobile" value="${slide.numberFontSizeMobile || 32}" min="20" max="80">
+                </div>
             </div>
-            <div class="form-group">
-                <label>Text Font Size (px)</label>
-                <input type="number" id="slide-textFontSize" value="${slide.textFontSize || 16}" min="10" max="32">
+        </div>
+        <div class="form-group">
+            <label>Text Font Size (px)</label>
+            <div class="form-row">
+                <div class="form-group" style="flex: 1;">
+                    <label style="font-size: 12px; color: #666;">Desktop</label>
+                    <input type="number" id="slide-textFontSize" value="${slide.textFontSize || 16}" min="10" max="32">
+                </div>
+                <div class="form-group" style="flex: 1;">
+                    <label style="font-size: 12px; color: #666;">Mobile</label>
+                    <input type="number" id="slide-textFontSizeMobile" value="${slide.textFontSizeMobile || 14}" min="10" max="32">
+                </div>
             </div>
+        </div>
+        <div class="form-group">
+            <label>Link URL from slide (optional)</label>
+            <input type="url" id="slide-link" value="${slide.link || ''}" placeholder="https://example.com">
+            <p class="help-text">Makes the entire slide clickable (overridden by button if present)</p>
         </div>
         ${renderButtonEditor(slide, index)}
     `;
@@ -1510,8 +1915,23 @@ function renderBigNumberEditor(container, slide, index) {
         updatePreview();
     });
 
+    document.getElementById('slide-numberFontSizeMobile').addEventListener('input', (e) => {
+        slide.numberFontSizeMobile = parseInt(e.target.value);
+        updatePreview();
+    });
+
     document.getElementById('slide-textFontSize').addEventListener('input', (e) => {
         slide.textFontSize = parseInt(e.target.value);
+        updatePreview();
+    });
+
+    document.getElementById('slide-textFontSizeMobile').addEventListener('input', (e) => {
+        slide.textFontSizeMobile = parseInt(e.target.value);
+        updatePreview();
+    });
+
+    document.getElementById('slide-link').addEventListener('input', (e) => {
+        slide.link = e.target.value;
         updatePreview();
     });
 
@@ -1541,6 +1961,11 @@ function renderImageSelectorEditor(container, slide, index) {
         <div class="form-group">
             <label>Dot Color (active)</label>
             <input type="color" id="slide-dotActiveColor" value="${slide.dotActiveColor || '#13264A'}">
+        </div>
+        <div class="form-group">
+            <label>Link URL from slide (optional)</label>
+            <input type="url" id="slide-link" value="${slide.link || ''}" placeholder="https://example.com">
+            <p class="help-text">Makes the entire slide clickable</p>
         </div>
         <div class="form-group">
             <label>Images</label>
@@ -1574,6 +1999,11 @@ function renderImageSelectorEditor(container, slide, index) {
 
     document.getElementById('slide-dotActiveColor').addEventListener('input', (e) => {
         slide.dotActiveColor = e.target.value;
+        updatePreview();
+    });
+
+    document.getElementById('slide-link').addEventListener('input', (e) => {
+        slide.link = e.target.value;
         updatePreview();
     });
 
@@ -2024,11 +2454,26 @@ function updatePreview() {
 }
 
 function scrollPreviewToSlide(index) {
+    console.log(`scrollPreviewToSlide called with index: ${index}`);
+    console.log(`previewMode: ${previewMode}, focusMode: ${focusMode}`);
+
+    // Don't scroll if in focus mode (showing only one slide)
+    if (focusMode) {
+        console.log('Focus mode is on, not scrolling (single slide view)');
+        return;
+    }
+
     // Only auto-scroll to selected slide in edit mode
-    if (previewMode !== 'edit') return;
+    if (previewMode !== 'edit') {
+        console.log('Not in edit mode, not scrolling');
+        return;
+    }
 
     const frame = document.getElementById('previewFrame');
-    if (!frame) return;
+    if (!frame) {
+        console.log('Preview frame not found');
+        return;
+    }
 
     // Wait a bit for the iframe content to be ready
     setTimeout(() => {
@@ -2041,14 +2486,36 @@ function scrollPreviewToSlide(index) {
                 return;
             }
 
-            const slides = scrollContainer.querySelectorAll('.content-box');
-            if (!slides[index]) {
-                console.warn(`Slide ${index} not found in preview`);
+            // Convert original slide index to visible slide index
+            // (accounting for hidden slides)
+
+            // If the current slide itself is hidden, don't try to scroll to it
+            if (carouselConfig.slides[index].visible === false) {
+                console.log(`Slide ${index} is hidden, not scrolling`);
                 return;
             }
 
+            // Count how many visible slides come before this one
+            let visibleIndex = 0;
+            for (let i = 0; i < index; i++) {
+                if (carouselConfig.slides[i].visible !== false) {
+                    visibleIndex++;
+                }
+            }
+
+            console.log(`Scrolling to slide ${index}, visible index: ${visibleIndex}`);
+            console.log(`Total visible slides in preview: ${scrollContainer.querySelectorAll('.content-box').length}`);
+
+            const slides = scrollContainer.querySelectorAll('.content-box');
+            if (!slides[visibleIndex]) {
+                console.warn(`Visible slide ${visibleIndex} (original index ${index}) not found in preview`);
+                return;
+            }
+
+            console.log(`Found slide at visible index ${visibleIndex}, scrolling now`);
+
             // Scroll to the slide instantly (no animation in edit mode)
-            slides[index].scrollIntoView({
+            slides[visibleIndex].scrollIntoView({
                 behavior: 'auto',
                 block: 'nearest',
                 inline: 'start'
@@ -2142,6 +2609,11 @@ function generatePreviewHTML() {
     // Create a copy of the config to modify for preview
     const previewConfig = { ...carouselConfig };
 
+    // In focus mode, show only the currently edited slide
+    if (focusMode && currentEditingSlideIndex !== null) {
+        previewConfig.slides = [carouselConfig.slides[currentEditingSlideIndex]];
+    }
+
     // In edit mode, disable auto-rotate to prevent conflicts with editor scrolling
     if (previewMode === 'edit') {
         previewConfig.autoRotate = false;
@@ -2208,6 +2680,7 @@ async function showLoadProjectModal(fromStartup = false) {
                         </div>
                     </div>
                     <div class="slide-item-actions" onclick="event.stopPropagation();">
+                        <button class="btn-secondary btn-small" onclick="window.duplicateProject('${project.id}')">Duplicate</button>
                         <button class="btn-danger btn-small" onclick="window.deleteProjectById('${project.id}', ${fromStartup})">Delete</button>
                     </div>
                 </div>
@@ -2476,9 +2949,9 @@ async function sharePreview() {
         return;
     }
 
-    // Generate preview URL
-    const editorDomain = window.location.origin;
-    const previewUrl = `${editorDomain}/preview.html?id=${carouselConfig.carouselId}`;
+    // Generate preview URL using public CDN domain (not editor domain which requires auth)
+    const publicCdn = import.meta.env.VITE_PUBLIC_CDN || 'https://d3bxz3apzcc1z.cloudfront.net';
+    const previewUrl = `${publicCdn}/preview.html?id=${carouselConfig.carouselId}`;
 
     // Copy to clipboard
     try {
@@ -2618,6 +3091,7 @@ async function exportToZip() {
     const readme = `# Carousel Advertorial - ${carouselConfig.customerName || 'Untitled'}
 
 Carousel ID: ${carouselConfig.carouselId}
+Runtime Version: ${carouselConfig.runtimeVersion || '1.0.0'}
 ${savingsInfo}
 ## Video Optimization
 
@@ -2638,27 +3112,37 @@ Videos are NOT automatically optimized (requires server-side tools).
 
 ## Installation
 
-1. Upload all files in the 'assets' folder to your S3 bucket
-2. Upload carousel-runtime.js to your S3 bucket
-3. Upload config.json to your S3 bucket
-4. In Google Ad Manager creative template, reference the carousel-runtime.js from CloudFront
-5. The creative template should pass the config.json URL to the runtime script
+1. Upload all files in the 'assets' folder to: \`s3://YOUR-BUCKET/public/{carouselId}/assets/\`
+2. Upload config.json to: \`s3://YOUR-BUCKET/public/{carouselId}/config.json\`
+3. **DO NOT** upload carousel-runtime.js - it's loaded from CDN based on the version in config.json
+4. Ensure the versioned runtime exists on CDN: \`/public/carousel-runtime-v${carouselConfig.runtimeVersion || '1.0.0'}.js\`
+5. Use the GAM creative template which automatically loads the correct runtime version
 
 ## Files
 
-- config.json: Contains all slide configurations and settings
-- carousel-runtime.js: The runtime script that renders the carousel
+- config.json: Contains all slide configurations, settings, and runtime version
+- carousel-runtime.js: Reference copy of the runtime script (for documentation only)
 - assets/: Optimized images and safe-named videos
+
+## Runtime Versioning
+
+This carousel uses runtime version **${carouselConfig.runtimeVersion || '1.0.0'}**.
+
+The GAM creative template automatically loads the correct runtime version from CDN based on the \`runtimeVersion\` field in config.json. This ensures:
+- ✅ Old carousels continue working even when runtime is updated
+- ✅ New features can be added without affecting published campaigns
+- ✅ Each carousel can be tested with a specific runtime version
 
 ## Usage in Google Ad Manager
 
-The creative template should include:
+The creative template automatically handles versioning:
 \`\`\`html
 <script>
-    window.carouselConfigUrl = 'YOUR_CLOUDFRONT_URL/config.json';
+    // The template fetches config.json, reads the runtimeVersion field,
+    // and loads the appropriate carousel-runtime-v{version}.js from CDN
+    var carouselId = '%%CAROUSEL_ID%%';
+    // ... rest of template code
 </script>
-<script src="YOUR_CLOUDFRONT_URL/carousel-runtime.js"></script>
-<div id="carousel-container"></div>
 \`\`\`
 `;
 
@@ -2672,6 +3156,11 @@ The creative template should include:
 function prepareConfigForExport() {
     // Replace data URLs with asset filenames
     const exportConfig = JSON.parse(JSON.stringify(carouselConfig));
+
+    // Add runtime version if not already present
+    if (!exportConfig.runtimeVersion) {
+        exportConfig.runtimeVersion = '1.1.0'; // Current development version
+    }
 
     exportConfig.slides.forEach(slide => {
         if (slide.srcFilename) {

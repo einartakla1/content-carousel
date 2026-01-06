@@ -2,6 +2,7 @@ export const slideTemplates = {
     fullImage: {
         type: 'fullImage',
         name: 'Full Image',
+        visible: true,
         size: 'regular',
         mobileSize: 'regular',
         src: '',
@@ -22,6 +23,7 @@ export const slideTemplates = {
     fullImageWithText: {
         type: 'fullImageWithText',
         name: 'Image with Text',
+        visible: true,
         size: 'regular',
         mobileSize: 'regular',
         src: '',
@@ -34,7 +36,9 @@ export const slideTemplates = {
         titleColor: '#ffffff',
         textColor: '#ffffff',
         titleFontSize: 24,
+        titleFontSizeMobile: 16,
         textFontSize: 14,
+        textFontSizeMobile: 12,
         useFillOverlay: false,
         fillColor: '#000000',
         fillHeight: '50%',
@@ -58,6 +62,7 @@ export const slideTemplates = {
     text: {
         type: 'text',
         name: 'Text Only',
+        visible: true,
         size: 'regular',
         mobileSize: 'regular',
         title: 'Your Title Here',
@@ -66,12 +71,16 @@ export const slideTemplates = {
         titleColor: '#13264A',
         textColor: '#333333',
         titleFontSize: 22,
+        titleFontSizeMobile: 18,
         textFontSize: 16,
+        textFontSizeMobile: 14,
+        link: '',
         button: null
     },
     video: {
         type: 'video',
         name: 'Video',
+        visible: true,
         size: 'regular',
         mobileSize: 'regular',
         src: '',
@@ -79,11 +88,13 @@ export const slideTemplates = {
         alt: 'Video',
         videoPosition: 'center center',
         videoScale: 1,
+        link: '',
         button: null
     },
     fullVideoWithText: {
         type: 'fullVideoWithText',
         name: 'Video with Text',
+        visible: true,
         size: 'regular',
         mobileSize: 'regular',
         src: '',
@@ -95,7 +106,9 @@ export const slideTemplates = {
         textWidth: '100%',
         textColor: '#ffffff',
         titleFontSize: 24,
+        titleFontSizeMobile: 16,
         textFontSize: 14,
+        textFontSizeMobile: 12,
         useFillOverlay: false,
         fillColor: '#000000',
         fillHeight: '50%',
@@ -106,11 +119,13 @@ export const slideTemplates = {
         gradientDirection: 'bottom',
         videoPosition: 'center center',
         videoScale: 1,
+        link: '',
         button: null
     },
     bigNumber: {
         type: 'bigNumber',
         name: 'Big Numbers',
+        visible: true,
         size: 'regular',
         mobileSize: 'regular',
         numberOne: '85%',
@@ -121,12 +136,16 @@ export const slideTemplates = {
         numberColor: '#13264A',
         textColor: '#333333',
         numberFontSize: 40,
+        numberFontSizeMobile: 32,
         textFontSize: 16,
+        textFontSizeMobile: 14,
+        link: '',
         button: null
     },
     imageSelector: {
         type: 'imageSelector',
         name: 'Image Selector',
+        visible: true,
         size: 'regular',
         mobileSize: 'regular',
         backgroundColor: '#EFF2F7',
@@ -134,6 +153,7 @@ export const slideTemplates = {
         textColor: '#333333',
         dotColor: '#cccccc',
         dotActiveColor: '#13264A',
+        link: '',
         images: []
     }
 };

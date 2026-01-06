@@ -185,9 +185,24 @@ async function listProjects() {
   return respond(200, { projects });
 }
 
-async function getProject(id) {
-  // Try draft config first, then public
-  const config = (await getConfigFromS3(draftConfigKey(id))) || (await getConfigFromS3(publicConfigKey(id)));
+async function getProject(id, source = 'draft') {
+  // Load from draft or published based on source parameter
+  let config;
+  if (source === 'published') {
+    config = await getConfigFromS3(publicConfigKey(id));
+    if (!config) {
+      // Fall back to draft if published doesn't exist
+      config = await getConfigFromS3(draftConfigKey(id));
+    }
+  } else {
+    // Default to draft
+    config = await getConfigFromS3(draftConfigKey(id));
+    if (!config) {
+      // Fall back to published if draft doesn't exist
+      config = await getConfigFromS3(publicConfigKey(id));
+    }
+  }
+
   if (!config) {
     return respond(404, { error: 'Project not found' });
   }
@@ -197,16 +212,14 @@ async function getProject(id) {
 async function saveProject(id, config) {
   if (!config) return respond(400, { error: 'Missing config payload' });
 
-  // Save to drafts first
+  // Save to drafts only (no auto-publish)
   await putConfigToS3(draftConfigKey(id), config);
 
-  // Auto-publish: copy drafts to public immediately
-  await copyPrefix(`${DRAFT_PREFIX}/${id}/`, `${PUBLIC_PREFIX}/${id}/`);
-
-  // Invalidate CloudFront cache for the published content
-  if (CDN_DISTRIBUTION_ID) {
-    await invalidateCdn(`/${PUBLIC_PREFIX}/${id}/*`);
-  }
+  // Removed auto-publish - use POST /projects/{id}/publish to publish explicitly
+  // await copyPrefix(`${DRAFT_PREFIX}/${id}/`, `${PUBLIC_PREFIX}/${id}/`);
+  // if (CDN_DISTRIBUTION_ID) {
+  //   await invalidateCdn(`/${PUBLIC_PREFIX}/${id}/*`);
+  // }
 
   const now = new Date().toISOString();
   const name = safeNameFromConfig(config);
@@ -218,7 +231,7 @@ async function saveProject(id, config) {
         id: String(id),
         name,
         lastModified: now,
-        status: 'published', // Mark as published immediately
+        status: 'draft', // Save as draft, not published
         version: config.version || 1,
       },
     })
@@ -323,6 +336,25 @@ async function previewLink(id, ttlSeconds = 900) {
   return respond(200, { url, expiresIn: ttlSeconds });
 }
 
+async function trackAnalytics(event, body) {
+  if (!body) return respond(400, { error: 'Missing analytics payload' });
+
+  // Log structured analytics event to CloudWatch
+  // This is completely anonymous - no IP or user_agent collected
+  console.log(JSON.stringify({
+    timestamp: new Date().toISOString(),
+    event_type: body.event_type,
+    carousel_id: body.carousel_id,
+    environment: body.environment,
+    slide_index: body.slide_index,
+    is_mobile: body.is_mobile,
+    viewport_width: body.viewport_width,
+    data: body.data
+  }));
+
+  return respond(200, { success: true });
+}
+
 exports.handler = async (event) => {
   const method = (event.requestContext?.http?.method || 'GET').toUpperCase();
 
@@ -340,6 +372,11 @@ exports.handler = async (event) => {
   const qs = event.queryStringParameters || {};
 
   try {
+    // /analytics - anonymous event tracking
+    if (path === '/analytics' && method === 'POST') {
+      return await trackAnalytics(event, body);
+    }
+
     // /projects
     if (path === '/projects' && method === 'GET') {
       return await listProjects();
@@ -360,7 +397,10 @@ exports.handler = async (event) => {
     const sub = match[2];
 
     if (!sub) {
-      if (method === 'GET') return await getProject(id);
+      if (method === 'GET') {
+        const source = qs.source || 'draft'; // Accept ?source=draft or ?source=published
+        return await getProject(id, source);
+      }
       if (method === 'PUT') return await saveProject(id, body);
       if (method === 'DELETE') return await deleteProject(id);
     }

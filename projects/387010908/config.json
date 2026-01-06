@@ -1,0 +1,49 @@
+{
+  "carouselId": 387010908,
+  "carouselName": "",
+  "disclaimerText": "ANNONSØRINNHOLD",
+  "customerName": "",
+  "autoRotate": false,
+  "autoRotateDelay": 4000,
+  "carouselHeight": 516,
+  "slideHeight": 340,
+  "globalLink": "https://www.example.com",
+  "slides": [
+    {
+      "type": "fullImageWithText",
+      "name": "Image with Text",
+      "size": "regular",
+      "mobileSize": "regular",
+      "src": "",
+      "alt": "",
+      "backgroundColor": "#ffffff",
+      "title": "Your Title Here",
+      "text": "Your text content here",
+      "textPosition": "bottom",
+      "textWidth": "100%",
+      "titleColor": "#ffffff",
+      "textColor": "#ffffff",
+      "titleFontSize": 24,
+      "textFontSize": 14,
+      "useFillOverlay": false,
+      "fillColor": "#000000",
+      "fillHeight": "50%",
+      "fillDirection": "bottom",
+      "useGradient": true,
+      "gradientColor": "#000000",
+      "gradientHeight": "50%",
+      "gradientDirection": "bottom",
+      "useZoom": false,
+      "imagePosition": "center center",
+      "imageScale": 1,
+      "imageTransform": {
+        "scale": 100,
+        "translateX": 0,
+        "translateY": 0,
+        "rotate": 0
+      },
+      "link": "",
+      "button": null
+    }
+  ]
+}

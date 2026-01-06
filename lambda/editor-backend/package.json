@@ -4,6 +4,6 @@
   "description": "Editor backend Lambda",
   "main": "index.js",
   "dependencies": {
-    "aws-sdk": "^2.1691.0"
+    "aws-sdk": "^2.1693.0"
   }
 }

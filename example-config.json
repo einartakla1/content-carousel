@@ -1,5 +1,6 @@
 {
   "carouselId": 123456789,
+  "runtimeVersion": "1.1.0",
   "disclaimerText": "ANNONSØRINNHOLD",
   "customerName": "EXAMPLE BRAND",
   "autoRotate": true,

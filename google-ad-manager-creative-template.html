@@ -95,7 +95,6 @@ MACRO/VARIABLE TO DEFINE IN GAM:
             // CDN URLs
             var CDN_BASE = 'https://d3bxz3apzcc1z.cloudfront.net';
             var CONFIG_URL = CDN_BASE + '/public/' + carouselId + '/config.json';
-            var RUNTIME_URL = CDN_BASE + '/public/carousel-runtime.js';
 
             // ==============================================================
             // CAROUSEL INITIALIZATION
@@ -110,22 +109,30 @@ MACRO/VARIABLE TO DEFINE IN GAM:
             // Set config URL for carousel runtime
             window.carouselConfigUrl = CONFIG_URL;
 
-            // Load carousel runtime
-            var script = document.createElement('script');
-            script.src = RUNTIME_URL;
-            script.async = true;
-
-            script.onerror = function() {
-                showError('Failed to load carousel runtime. Please check your CDN configuration.');
-            };
-
-            // Optionally verify config exists before loading runtime
+            // Fetch config to determine which runtime version to load
             fetch(CONFIG_URL)
                 .then(function(response) {
                     if (!response.ok) {
                         throw new Error('Carousel not found (ID: ' + carouselId + ')');
                     }
-                    // Config exists, load the runtime
+                    return response.json();
+                })
+                .then(function(config) {
+                    // Determine runtime version from config (default to v1.0.0 for backwards compatibility)
+                    var runtimeVersion = config.runtimeVersion || '1.0.0';
+                    var RUNTIME_URL = CDN_BASE + '/public/carousel-runtime-v' + runtimeVersion + '.js';
+
+                    console.log('[Carousel] Loading runtime version:', runtimeVersion);
+
+                    // Load the appropriate versioned runtime
+                    var script = document.createElement('script');
+                    script.src = RUNTIME_URL;
+                    script.async = true;
+
+                    script.onerror = function() {
+                        showError('Failed to load carousel runtime version ' + runtimeVersion + '. Please check your CDN configuration.');
+                    };
+
                     document.head.appendChild(script);
                 })
                 .catch(function(error) {

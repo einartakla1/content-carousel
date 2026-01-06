@@ -5,7 +5,17 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Carousel Advertorial Editor</title>
-    <link rel="stylesheet" href="./src/editor.css">
+    <link rel="stylesheet" href="./src/editor.css?v=1.2.0">
+    <!-- Import Map for ES Modules -->
+    <script type="importmap">
+    {
+        "imports": {
+            "jszip": "https://cdn.jsdelivr.net/npm/jszip@3.10.1/+esm",
+            "file-saver": "https://cdn.jsdelivr.net/npm/file-saver@2.0.5/+esm",
+            "sortablejs": "https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/+esm"
+        }
+    }
+    </script>
     <!-- Lucide Icons -->
     <script src="https://unpkg.com/lucide@latest"></script>
 </head>
@@ -18,6 +28,25 @@
                 <h1>Carousel Editor</h1>
                 <div id="autoSaveStatus" style="font-size: 12px; color: rgba(255,255,255,0.8); margin-top: 4px;">
                     Auto-save: every 30 sec</div>
+            </div>
+
+            <!-- Draft/Published Switcher -->
+            <div class="section" style="padding: 12px; background: rgba(255,255,255,0.05); border-radius: 8px; margin-bottom: 12px;">
+                <div style="display: flex; gap: 8px; margin-bottom: 12px;">
+                    <button class="btn-secondary active" id="viewDraft" style="flex: 1;">
+                        <i data-lucide="edit" style="width: 14px; height: 14px;"></i>
+                        Draft
+                    </button>
+                    <button class="btn-secondary" id="viewPublished" style="flex: 1;">
+                        <i data-lucide="globe" style="width: 14px; height: 14px;"></i>
+                        Published
+                    </button>
+                </div>
+                <button class="btn-success" id="publishBtn" style="width: 100%; display: flex; align-items: center; justify-content: center; gap: 8px;">
+                    <i data-lucide="upload-cloud" style="width: 16px; height: 16px;"></i>
+                    Publish Changes
+                </button>
+                <div id="publishStatus" style="font-size: 11px; color: rgba(255,255,255,0.6); margin-top: 8px; text-align: center;"></div>
             </div>
 
             <!-- Carousel Management -->
@@ -35,10 +64,10 @@
                 <button class="btn-secondary" id="manualSaveBtn"
                     style="width: 100%; margin-bottom: 8px; display: flex; align-items: center; gap: 8px;">
                     <i data-lucide="save" style="width: 16px; height: 16px;"></i>
-                    Save Carousel
+                    Save Draft
                     <span style="margin-left: auto; font-size: 11px; opacity: 0.7;">⌘S</span>
                 </button>
-                <button class="btn-success" id="shareBtn" style="width: 100%; display: flex; align-items: center; gap: 8px;">
+                <button class="btn-secondary" id="shareBtn" style="width: 100%; display: flex; align-items: center; gap: 8px;">
                     <i data-lucide="share-2" style="width: 16px; height: 16px;"></i>
                     Share Preview Link
                 </button>
@@ -90,6 +119,18 @@
                             <input type="number" id="autoRotateDelay" value="4000" min="1000" step="500">
                             <p class="help-text">Time between each rotation</p>
                         </div>
+                        <div class="form-group">
+                            <label>
+                                <input type="checkbox" id="enableGlobalLink">
+                                Enable Global Link for All Slides
+                            </label>
+                            <p class="help-text">Apply a default link to all slides (overridden by buttons or individual slide links)</p>
+                        </div>
+                        <div class="form-group" id="globalLinkGroup" style="display: none;">
+                            <label>Global Link URL</label>
+                            <input type="url" id="globalLink" placeholder="https://example.com">
+                            <p class="help-text">This link applies to all slides unless they have a button or individual link</p>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -117,6 +158,9 @@
             <div class="preview-header">
                 <h2 id="previewTitle">Preview</h2>
                 <div class="preview-controls">
+                    <button class="btn-secondary active" id="focusModeBtn" title="Single Slide View (click to show full carousel)">
+                        <i data-lucide="square" style="width: 16px; height: 16px;"></i>
+                    </button>
                     <button class="btn-secondary" id="refreshPreviewBtn" title="Refresh Preview">
                         <i data-lucide="refresh-cw" style="width: 16px; height: 16px;"></i>
                     </button>
@@ -204,7 +248,7 @@
         </div>
     </div>
 
-    <script type="module" src="./src/main.js"></script>
+    <script type="module" src="./src/main.js?v=1.2.0"></script>
     <script>
         // Initialize Lucide icons
         if (typeof lucide !== 'undefined') {

@@ -19,6 +19,7 @@ Thumbs.db
 # Environment files
 .env
 .env.local
+.env.production
 
 # Local infrastructure config (keep out of git)
 infra/

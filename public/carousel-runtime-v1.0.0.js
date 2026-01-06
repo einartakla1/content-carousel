@@ -1,12 +1,12 @@
 // Carousel Runtime Script
 // This script will be loaded from CloudFront/S3 and renders the carousel based on the provided config
-// Version: 1.1.0
+// Version: 1.0.0 (Frozen - Production Stable)
 
 (function () {
     'use strict';
 
     // Runtime version
-    const RUNTIME_VERSION = '1.2.0';
+    const RUNTIME_VERSION = '1.0.0';
     window.carouselRuntimeVersion = RUNTIME_VERSION;
 
     // Helper function to convert line breaks to <br> tags and preserve formatting
@@ -37,8 +37,8 @@
         if (slide.link && slide.link.trim() !== '') {
             return slide.link;
         }
-        // Fall back to global link (only if enabled)
-        if (config.enableGlobalLink && config.globalLink && config.globalLink.trim() !== '') {
+        // Fall back to global link
+        if (config.globalLink && config.globalLink.trim() !== '') {
             return config.globalLink;
         }
         return null;
@@ -141,9 +141,6 @@
         setupAutoRotate();
         setupIntersectionObserver();
 
-        // Setup analytics after carousel is rendered
-        setupAnalytics();
-
         // Handle resize - only attach if checkScrollButtons exists
         window.addEventListener('resize', () => {
             if (window.checkScrollButtons) {
@@ -181,7 +178,10 @@
                 overflow: hidden;
                 touch-action: pan-x;
                 background-color: #f3f4f5;
-                padding: 24px;
+                padding-left: 24px;
+                padding-right: 24px;
+                padding-top: 16px;
+                padding-bottom: 16px;
                 display: flex;
                 flex-direction: column;
                 box-sizing: border-box;
@@ -278,7 +278,7 @@
 
             .text-overlay {
                 position: absolute;
-                padding: 24px;
+                padding: 16px;
                 color: white;
                 width: 100%;
                 box-sizing: border-box;
@@ -534,8 +534,8 @@
 
             .chevron {
                 color: #000;
-                width: 18px;
-                height: 18px;
+                width: 24px;
+                height: 24px;
             }
 
             @media (min-width: 900px) {
@@ -546,7 +546,10 @@
 
             @media (max-width: 600px) {
                 .carousel-container {
-                    padding: 24px;
+                    padding-top: 16px;
+                    padding-right: 0px;
+                    padding-bottom: 16px;
+                    padding-left: 16px;
                 }
 
                 .scroll-button-left {
@@ -630,13 +633,13 @@
                         </div>
                         
                         <button id="scrollButtonLeft" class="scroll-button scroll-button-left" style="display: none;">
-                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                                 <path d="M2 12L10.0607 20.0607L11.1213 19L4.87132 12.75L23.0608 12.75V11.25L4.87132 11.25L11.1213 4.99999L10.0607 3.93933L2 12Z" fill="#000000" />
                             </svg>
                         </button>
-
+                        
                         <button id="scrollButtonRight" class="scroll-button scroll-button-right" style="display: none;">
-                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                                 <path d="M23.0608 12L15.0001 3.93933L13.9395 4.99999L20.1895 11.25H2V12.75H20.1895L13.9395 19L15.0001 20.0607L23.0608 12Z" fill="#000000" />
                             </svg>
                         </button>
@@ -647,14 +650,12 @@
 
         container.innerHTML = html;
 
-        // Render slides (filter out hidden slides)
+        // Render slides
         const scrollContainer = document.getElementById('scrollContainer');
-        config.slides
-            .filter(slide => slide.visible !== false) // Only render visible slides (default to visible)
-            .forEach((slide, index) => {
-                const slideElement = renderSlide(slide, index);
-                scrollContainer.appendChild(slideElement);
-            });
+        config.slides.forEach((slide, index) => {
+            const slideElement = renderSlide(slide, index);
+            scrollContainer.appendChild(slideElement);
+        });
     }
 
     function getSizeClasses(slide) {
@@ -685,7 +686,7 @@
         }
     }
 
-    function renderFullImage(slide, slideIndex) {
+    function renderFullImage(slide) {
         const box = document.createElement('div');
         box.className = `content-box ${getSizeClasses(slide)}`;
         box.style.position = 'relative';
@@ -766,12 +767,12 @@
         }
 
         // Add click handler for individual or global link (if no button)
-        addSlideClickHandler(box, slide, slideIndex, hasButton);
+        addSlideClickHandler(box, slide, hasButton);
 
         return box;
     }
 
-    function renderFullImageWithText(slide, slideIndex) {
+    function renderFullImageWithText(slide) {
         const box = document.createElement('div');
         box.className = `content-box ${getSizeClasses(slide)}`;
         box.style.position = 'relative';
@@ -900,7 +901,7 @@
         }
 
         // Add click handler for individual or global link (if no button)
-        addSlideClickHandler(box, slide, slideIndex, hasButton);
+        addSlideClickHandler(box, slide, hasButton);
 
         return box;
     }
@@ -947,7 +948,7 @@
         return overlay;
     }
 
-    function renderText(slide, slideIndex) {
+    function renderText(slide) {
         const box = document.createElement('div');
         box.className = `content-box ${getSizeClasses(slide)}`;
         box.style.position = 'relative';  // Enable absolute positioning for button
@@ -995,12 +996,12 @@
         }
 
         // Add click handler for individual or global link (if no button)
-        addSlideClickHandler(box, slide, slideIndex, hasButton);
+        addSlideClickHandler(box, slide, hasButton);
 
         return box;
     }
 
-    function renderVideo(slide, slideIndex) {
+    function renderVideo(slide) {
         const box = document.createElement('div');
         box.className = `content-box ${getSizeClasses(slide)}`;
         box.style.position = 'relative';
@@ -1026,12 +1027,12 @@
         }
 
         // Add click handler for individual or global link (if no button)
-        addSlideClickHandler(box, slide, slideIndex, hasButton);
+        addSlideClickHandler(box, slide, hasButton);
 
         return box;
     }
 
-    function renderFullVideoWithText(slide, slideIndex) {
+    function renderFullVideoWithText(slide) {
         const box = document.createElement('div');
         box.className = `content-box ${getSizeClasses(slide)}`;
         box.style.position = 'relative';
@@ -1105,12 +1106,12 @@
         }
 
         // Add click handler for individual or global link (if no button)
-        addSlideClickHandler(box, slide, slideIndex, hasButton);
+        addSlideClickHandler(box, slide, hasButton);
 
         return box;
     }
 
-    function renderBigNumber(slide, slideIndex) {
+    function renderBigNumber(slide) {
         const box = document.createElement('div');
         box.className = `content-box ${getSizeClasses(slide)}`;
 
@@ -1183,12 +1184,12 @@
         box.style.position = 'relative';  // Enable positioning for click handler
 
         // Add click handler for individual or global link (if no button)
-        addSlideClickHandler(box, slide, slideIndex, hasButton);
+        addSlideClickHandler(box, slide, hasButton);
 
         return box;
     }
 
-    function renderImageSelector(slide, slideIndex) {
+    function renderImageSelector(slide) {
         const box = document.createElement('div');
         box.className = `content-box ${getSizeClasses(slide)}`;
 
@@ -1254,7 +1255,7 @@
         box.style.position = 'relative';  // Enable positioning for click handler
 
         // Add click handler for individual or global link (imageSelector doesn't have buttons)
-        addSlideClickHandler(box, slide, slideIndex, false);
+        addSlideClickHandler(box, slide, false);
 
         return box;
     }
@@ -1591,22 +1592,6 @@
         const API_BASE = window.ANALYTICS_ENDPOINT || 'https://6vk6jdeyeh.execute-api.eu-north-1.amazonaws.com';
         const ANALYTICS_ENDPOINT = `${API_BASE}/analytics`;
 
-        // Detect environment for filtering in CloudWatch
-        function detectEnvironment() {
-            // Check if this is a GAM ad (has gamClickUrl macro)
-            if (window.gamClickUrl && window.gamClickUrl !== '%%CLICK_URL_UNESC%%') {
-                return 'gam_production';
-            }
-            // Check if this is the preview page
-            if (window.location.pathname.includes('preview.html')) {
-                return 'preview';
-            }
-            // Otherwise it's the editor
-            return 'editor';
-        }
-
-        const environment = detectEnvironment();
-
         // Tracking state
         let scrollTimeout = null;
         let startSlide = getCurrentSlideIndex();
@@ -1629,7 +1614,6 @@
                     body: JSON.stringify({
                         event_type: eventType,
                         carousel_id: config.carouselId,
-                        environment: environment,
                         timestamp: Date.now(),
                         is_mobile: window.innerWidth < 768,
                         viewport_width: window.innerWidth,
@@ -1776,5 +1760,8 @@
         setupScrollTracking();
         setupSwipeTracking();
     }
+
+    // Call analytics setup after carousel is initialized
+    setupAnalytics();
 
 })();
